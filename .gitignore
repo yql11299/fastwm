@@ -87,5 +87,5 @@ __tests__/
 cookies.txt
 
 # 部署相关（不需要提交到仓库）
-docker-compose.override.yml
+pm2.*
 *.pid
