@@ -135,8 +135,9 @@ async function initializeServer() {
 
     // 启动服务器
     const port = config.port;
-    app.listen(port, () => {
-      console.log(`证件水印处理系统服务已启动，端口: ${port}`);
+    const host = process.env.HOST || '0.0.0.0';
+    app.listen(port, host, () => {
+      console.log(`证件水印处理系统服务已启动，端口: ${port}，地址: http://${host}:${port}`);
       console.log(`环境: ${config.nodeEnv}`);
       console.log(`字体目录: ${config.dirs.fonts}`);
       console.log(`用户目录: ${config.dirs.users}`);

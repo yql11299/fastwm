@@ -1,7 +1,3 @@
-// ===========================================
-// PM2 部署配置文件 - 证件水印处理系统
-// ===========================================
-
 module.exports = {
   apps: [
     {
@@ -15,19 +11,15 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-      },
-      env_production: {
-        NODE_ENV: 'production',
-        PORT: 3000,
+        HOST: '0.0.0.0',
       },
       error_file: './logs/server-error.log',
       out_file: './logs/server-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
       name: 'fastwm-client',
       script: './client/node_modules/.bin/vite',
-      args: 'preview --port 5173',
+      args: 'preview --port 5173 --host 0.0.0.0',
       cwd: './client',
       instances: 1,
       autorestart: true,
@@ -37,7 +29,6 @@ module.exports = {
       },
       error_file: './logs/client-error.log',
       out_file: './logs/client-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
   ],
 };
