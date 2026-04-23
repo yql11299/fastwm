@@ -26,8 +26,8 @@ module.exports = {
     },
     {
       name: 'fastwm-client',
-      script: 'npx',
-      args: 'serve dist -l 5173',
+      script: './client/node_modules/.bin/vite',
+      args: 'preview --port 5173',
       cwd: './client',
       instances: 1,
       autorestart: true,
