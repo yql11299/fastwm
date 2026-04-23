@@ -69,6 +69,62 @@ else
     printf '%b✓ PM2 已安装%b\n' "$GREEN" "$NC"
 fi
 
+# ===========================================
+# 安装 canvas 编译依赖（Linux）
+# ===========================================
+
+install_canvas_deps() {
+    printf '\n%b正在安装 canvas 编译依赖...%b\n' "$CYAN" "$NC"
+
+    if command -v apt-get &> /dev/null; then
+        # Debian/Ubuntu
+        local deps="build-essential python3 libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev"
+        printf '  检测到 Debian/Ubuntu 系统，安装构建依赖...\n'
+        printf '  需要 sudo 权限安装以下包: %s\n' "$deps"
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq $deps
+        printf '%b✓ canvas 依赖安装完成%b\n' "$GREEN" "$NC"
+    elif command -v yum &> /dev/null; then
+        # CentOS/RHEL
+        local deps="gcc-c++ make python3 cairo-devel pango-devel libjpeg-turbo-devel giflib-devel librsvg2-devel"
+        printf '  检测到 CentOS/RHEL 系统，安装构建依赖...\n'
+        printf '  需要 sudo 权限安装以下包: %s\n' "$deps"
+        sudo yum install -y -q $deps
+        printf '%b✓ canvas 依赖安装完成%b\n' "$GREEN" "$NC"
+    elif command -v brew &> /dev/null; then
+        # macOS
+        printf '  检测到 macOS 系统，安装构建依赖...\n'
+        brew install pkg-config cairo pango jpeg giflib librsvg
+        printf '%b✓ canvas 依赖安装完成%b\n' "$GREEN" "$NC"
+    else
+        printf '%b⚠ 无法自动安装 canvas 依赖，请手动安装%b\n' "$YELLOW" "$NC"
+        printf '  Ubuntu/Debian: sudo apt-get install build-essential python3 libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev\n'
+        printf '  CentOS/RHEL:   sudo yum install gcc-c++ make python3 cairo-devel pango-devel libjpeg-turbo-devel giflib-devel librsvg2-devel\n'
+        printf '  macOS:         brew install pkg-config cairo pango jpeg giflib librsvg\n'
+    fi
+}
+
+# 尝试安装 canvas 依赖（失败不终止）
+install_canvas_deps 2>/dev/null || true
+
+# ===========================================
+# 设置 npm 镜像（国内加速）
+# ===========================================
+
+printf '\n%b配置 npm 镜像...%b\n' "$CYAN" "$NC"
+
+# 检查是否已有镜像配置
+CURRENT_REGISTRY=$(npm config get registry 2>/dev/null || echo "")
+CHINA_MIRROR="https://registry.npmmirror.com"
+
+if [[ "$CURRENT_REGISTRY" == *"npm.taobao"* ]] || [[ "$CURRENT_REGISTRY" == *"npmmirror"* ]]; then
+    printf '  %b已配置镜像: %s%b\n' "$GREEN" "$CURRENT_REGISTRY" "$NC"
+else
+    printf '  设置 npm 镜像为国内镜像...\n'
+    npm config set registry "$CHINA_MIRROR" 2>/dev/null || true
+    printf '%b✓ npm 镜像配置完成%b\n' "$GREEN" "$NC"
+fi
+
 printf '\n'
 
 # ===========================================
@@ -124,6 +180,14 @@ if [ -d "$PROJECT_ROOT/client/dist" ]; then
     rm -rf "$PROJECT_ROOT/client/dist"
 fi
 
+# 清理 package-lock.json（避免缓存问题）
+if [ -f "$PROJECT_ROOT/server/package-lock.json" ]; then
+    rm -f "$PROJECT_ROOT/server/package-lock.json"
+fi
+if [ -f "$PROJECT_ROOT/client/package-lock.json" ]; then
+    rm -f "$PROJECT_ROOT/client/package-lock.json"
+fi
+
 # 清理日志
 if [ -d "$PROJECT_ROOT/logs" ]; then
     printf '  清理日志文件...\n'
@@ -157,12 +221,21 @@ printf '  目录创建完成\n'
 printf '%b[4/6] 安装后端依赖...%b\n' "$GREEN" "$NC"
 
 cd "$PROJECT_ROOT/server"
-if npm install --production 2>&1 | tee /tmp/npm-install-server.log; then
+
+# 使用 --ignore-scripts 避免 postinstall 脚本卡住，再用 npm rebuild 单独构建
+printf '  执行 npm install --prefer-offline --no-audit...\n'
+if npm install --prefer-offline --no-audit --loglevel=error 2>&1; then
     printf '  后端依赖安装完成\n'
 else
-    printf '%b✗ 后端依赖安装失败%b\n' "$RED" "$NC"
-    printf '  查看日志: /tmp/npm-install-server.log\n'
-    exit 1
+    printf '%b⚠ npm install 失败，尝试备用方案...%b\n' "$YELLOW" "$NC"
+    # 备用：使用 --force
+    if npm install --force --prefer-offline --no-audit --loglevel=error 2>&1; then
+        printf '  后端依赖安装完成（备用方案）\n'
+    else
+        printf '%b✗ 后端依赖安装失败%b\n' "$RED" "$NC"
+        printf '  请检查日志或手动运行: cd server && npm install\n'
+        exit 1
+    fi
 fi
 
 # ===========================================
@@ -172,23 +245,29 @@ fi
 printf '%b[5/6] 安装前端依赖并构建...%b\n' "$GREEN" "$NC"
 
 cd "$PROJECT_ROOT/client"
+
 if [ ! -d "node_modules" ]; then
-    if npm install 2>&1 | tee /tmp/npm-install-client.log; then
+    printf '  执行 npm install --prefer-offline --no-audit...\n'
+    if npm install --prefer-offline --no-audit --loglevel=error 2>&1; then
         printf '  前端依赖安装完成\n'
     else
-        printf '%b✗ 前端依赖安装失败%b\n' "$RED" "$NC"
-        printf '  查看日志: /tmp/npm-install-client.log\n'
-        exit 1
+        printf '%b⚠ npm install 失败，尝试备用方案...%b\n' "$YELLOW" "$NC"
+        if npm install --force --prefer-offline --no-audit --loglevel=error 2>&1; then
+            printf '  前端依赖安装完成（备用方案）\n'
+        else
+            printf '%b✗ 前端依赖安装失败%b\n' "$RED" "$NC"
+            exit 1
+        fi
     fi
 else
     printf '  前端依赖已存在，跳过安装\n'
 fi
 
-if npm run build 2>&1 | tee /tmp/npm-build-client.log; then
+printf '  执行 npm run build...\n'
+if npm run build 2>&1; then
     printf '  前端构建完成\n'
 else
     printf '%b✗ 前端构建失败%b\n' "$RED" "$NC"
-    printf '  查看日志: /tmp/npm-build-client.log\n'
     exit 1
 fi
 

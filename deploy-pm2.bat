@@ -41,7 +41,7 @@ echo [OK] npm 已安装
 where pm2 >nul 2>&1
 if %errorlevel% neq 0 (
     echo [提示] PM2 未安装，正在安装...
-    npm install -g pm2
+    call npm install -g pm2
     if %errorlevel% neq 0 (
         echo [错误] PM2 安装失败
         pause
@@ -51,6 +51,22 @@ if %errorlevel% neq 0 (
 ) else (
     echo [OK] PM2 已安装
 )
+
+:: ===========================================
+:: 配置 npm 镜像
+:: ===========================================
+
+echo.
+echo 正在配置 npm 镜像...
+
+call npm config get registry >nul 2>&1
+set "NPM_REGISTRY="
+for /f "tokens=*" %%i in ('npm config get registry 2^>nul') do set "NPM_REGISTRY=%%i"
+echo 当前镜像: %NPM_REGISTRY%
+
+echo 设置 npm 镜像为国内镜像...
+call npm config set registry https://registry.npmmirror.com
+echo [OK] npm 镜像配置完成
 
 :: ===========================================
 :: 端口配置
@@ -107,6 +123,10 @@ if exist "client\dist" (
     rd /s /q "client\dist" 2>nul
 )
 
+:: 清理 package-lock.json
+if exist "server\package-lock.json" del /f /q "server\package-lock.json"
+if exist "client\package-lock.json" del /f /q "client\package-lock.json"
+
 :: 清理日志
 if exist "logs" (
     del /q "logs\*.log" 2>nul
@@ -137,11 +157,18 @@ echo   目录创建完成
 echo [4/6] 安装后端依赖...
 
 cd /d "%~dp0server"
-call npm install --production
+echo   执行 npm install --prefer-offline --no-audit...
+
+call npm install --prefer-offline --no-audit --loglevel=error
 if %errorlevel% neq 0 (
-    echo [错误] 后端依赖安装失败
-    pause
-    exit /b 1
+    echo [提示] npm install 失败，尝试备用方案...
+    call npm install --force --prefer-offline --no-audit --loglevel=error
+    if %errorlevel% neq 0 (
+        echo [错误] 后端依赖安装失败
+        echo   请手动运行: cd server ^&^& npm install
+        pause
+        exit /b 1
+    )
 )
 echo   后端依赖安装完成
 
@@ -153,15 +180,21 @@ echo [5/6] 安装前端依赖并构建...
 
 cd /d "%~dp0client"
 if not exist "node_modules" (
-    call npm install
+    echo   执行 npm install --prefer-offline --no-audit...
+    call npm install --prefer-offline --no-audit --loglevel=error
     if %errorlevel% neq 0 (
-        echo [错误] 前端依赖安装失败
-        pause
-        exit /b 1
+        echo [提示] npm install 失败，尝试备用方案...
+        call npm install --force --prefer-offline --no-audit --loglevel=error
+        if %errorlevel% neq 0 (
+            echo [错误] 前端依赖安装失败
+            pause
+            exit /b 1
+        )
     )
     echo   前端依赖安装完成
 )
 
+echo   执行 npm run build...
 call npm run build
 if %errorlevel% neq 0 (
     echo [错误] 前端构建失败
@@ -193,11 +226,11 @@ if %errorlevel% equ 0 (
 
 :: 启动服务
 cd /d "%~dp0"
-start cmd /k "pm2 start ecosystem.config.js"
+call pm2 start ecosystem.config.js
 
 timeout /t 3 /nobreak >nul
 
-pm2 save >nul 2>&1
+call pm2 save >nul 2>&1
 
 :: ===========================================
 :: 状态检查
