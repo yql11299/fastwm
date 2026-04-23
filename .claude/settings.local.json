@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version)",
+      "Bash(npm --version)",
+      "Read(//c/Windows/Fonts/**)",
+      "Bash(cp \"/c/Windows/Fonts/msyh.ttc\" /g/code/fastwm/watermark-verify/fonts/)",
+      "Bash(cp \"/c/Windows/Fonts/simhei.ttf\" /g/code/fastwm/watermark-verify/fonts/)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(find /g/code/fastwm -type f -name *.md -o -name *.js -o -name *.json)"
+    ]
+  }
+}

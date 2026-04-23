@@ -1,0 +1,515 @@
+/* 布局画布组件样式 - 拖拽调整布局 */
+/* 证件样式与首页一致，文本框包裹复选框+文字 */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+/* 顶部导航栏 */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  background-color: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.backBtn:hover {
+  color: var(--color-text);
+  background-color: var(--color-bg-hover);
+}
+
+.backBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.saveMessage {
+  font-size: var(--text-sm);
+  color: var(--color-success);
+  padding: var(--space-2) var(--space-3);
+  background-color: rgba(34, 197, 94, 0.1);
+  border-radius: var(--radius-md);
+}
+
+/* 主内容区 */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+/* 说明 */
+.instructions {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.instructions p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* 操作栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.toolbar button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 证件列表 - 按行显示，与首页一致 */
+.documentList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  min-height: 100px;
+}
+
+/* 每一行证件 */
+.documentRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 36px;
+  position: relative;
+}
+
+/* 证件项容器 - 用于精确定位 */
+.docItemWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* 证件项 - 文本框样式，与首页一致 */
+.docItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  transition: all 0.15s ease;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+.docItem:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+/* 拖拽手柄 */
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  cursor: grab;
+  transition: color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.docItem:hover .dragHandle {
+  color: var(--color-primary);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+/* 证件名称 */
+.docName {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 拖拽中的证件 - 虚化效果 */
+.docItem.dragging {
+  opacity: 0.3;
+  border-style: dashed;
+  cursor: grabbing;
+  z-index: 0;
+}
+
+/* 拖拽悬停目标 - 退位效果 */
+.docItem.retreat {
+  opacity: 0.5;
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.1);
+  transform: scale(0.95);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* 补位占位符 - 拖拽目标移走后显示 */
+.placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  min-width: 80px;
+  height: 28px;
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+  background-color: rgba(99, 102, 241, 0.05);
+  opacity: 0.8;
+  transition: all 0.15s ease;
+  animation: placeholderPulse 1s ease-in-out infinite;
+}
+
+@keyframes placeholderPulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 行尾占位符 - 用于拖拽到行尾 */
+.rowEndPlaceholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  height: 32px;
+  border: 2px dashed transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  opacity: 0;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.rowEndPlaceholder span {
+  white-space: nowrap;
+}
+
+.rowEndPlaceholderActive {
+  opacity: 1;
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+  animation: placeholderPulse 1s ease-in-out infinite;
+}
+
+/* 新行占位符 - 用于跨行拖拽 */
+.newRowPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: var(--space-3);
+  border: 2px dashed transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  opacity: 0.3;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.newRowPlaceholder svg {
+  opacity: 0.5;
+}
+
+.newRowPlaceholder span {
+  white-space: nowrap;
+}
+
+.newRowPlaceholderActive {
+  opacity: 1;
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+  cursor: pointer;
+  animation: placeholderPulse 1s ease-in-out infinite;
+}
+
+.newRowPlaceholderActive svg {
+  opacity: 1;
+}
+
+/* 拖拽幽灵元素 - 跟随鼠标 */
+.dragGhost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.9;
+  transform: rotate(2deg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background-color: var(--color-bg-card);
+  cursor: grabbing;
+  animation: ghostAppear 0.15s ease-out;
+}
+
+@keyframes ghostAppear {
+  from {
+    opacity: 0;
+    transform: rotate(0deg) scale(0.95);
+  }
+  to {
+    opacity: 0.9;
+    transform: rotate(2deg) scale(1);
+  }
+}
+
+/* 空状态 */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.emptyState svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-4);
+  opacity: 0.4;
+}
+
+.emptyState p {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-2);
+}
+
+.emptyHint {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* 垃圾桶区域 */
+.trashZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background-color: var(--color-bg-card);
+  border: 3px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+  min-height: 100px;
+  margin-top: auto;
+}
+
+.trashZone svg {
+  width: 40px;
+  height: 40px;
+}
+
+.trashZone span {
+  font-size: var(--text-sm);
+}
+
+.trashZone.active {
+  border-color: var(--color-danger);
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  transform: scale(1.02);
+}
+
+.trashZone.active svg {
+  color: var(--color-danger);
+}
+
+/* 模态框 */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.modalHeader h3 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.closeBtn:hover {
+  color: var(--color-text);
+  background-color: var(--color-bg-hover);
+}
+
+.closeBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.modalContent {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.dialogHint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.noFiles {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fileItem:hover {
+  border-color: var(--color-primary);
+}
+
+.fileItem.selected {
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+.fileName {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.fileType {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  margin-left: var(--space-2);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}

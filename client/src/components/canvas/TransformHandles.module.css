@@ -1,0 +1,57 @@
+/* 变换手柄样式 */
+.transform-handles {
+  pointer-events: none;
+}
+
+.transform-handles * {
+  pointer-events: auto;
+}
+
+.transform-handles.active {
+  pointer-events: none;
+}
+
+.transform-handles.active .resizeHandle,
+.transform-handles.active .rotateHandle {
+  pointer-events: auto;
+  pointer-events: auto !important;
+}
+
+.resizeHandle {
+  transition: fill 0.1s, stroke 0.1s;
+}
+
+.resizeHandle:hover {
+  fill: #2563eb;
+  stroke: #fff;
+}
+
+.resizeHandle.selected {
+  fill: #2563eb;
+  stroke: #fff;
+}
+
+.resizeHandle.resizing {
+  fill: #1d4ed8;
+  stroke: #fff;
+}
+
+.edgeHandle {
+  opacity: 0.7;
+}
+
+.edgeHandle:hover {
+  opacity: 1;
+}
+
+.rotateHandle {
+  transition: fill 0.1s;
+}
+
+.rotateHandle:hover {
+  fill: #eff6ff;
+}
+
+.rotateHandle:active {
+  cursor: grabbing;
+}

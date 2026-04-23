@@ -1,0 +1,42 @@
+# Node modules
+node_modules
+*/node_modules
+
+# Build outputs
+dist
+build
+*.egg-info
+
+# Test files
+tests
+coverage
+__tests__
+
+# Development files
+.git
+.gitignore
+*.md
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test data
+test_*
+*.test.js
+*.spec.js
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Windows specific
+*.lnk

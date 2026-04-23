@@ -1,0 +1,229 @@
+/* 登录页面样式 */
+.loginContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.loginCard {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-8);
+  width: 100%;
+  max-width: 400px;
+  animation: slideUp 0.3s ease;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-4);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.logo svg {
+  width: 36px;
+  height: 36px;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.userList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.userItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.userItem:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border);
+}
+
+.userItem.selected {
+  background-color: var(--color-bg-selected);
+  border-color: var(--color-primary);
+}
+
+.userAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.userName {
+  flex: 1;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.checkmark {
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary);
+}
+
+.checkmark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.emptyUsers {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.createUserBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: transparent;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.createUserBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-bg-selected);
+}
+
+.createUserBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.inputGroup label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.inputGroup input {
+  padding: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  transition: border-color var(--transition-fast);
+}
+
+.inputGroup input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.formActions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.formActions .backBtn {
+  flex: 1;
+}
+
+.formActions button[type="submit"] {
+  flex: 1;
+}
+
+.errorMessage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+.errorMessage svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.loginBtn {
+  width: 100%;
+  padding: var(--space-4);
+  font-size: var(--text-base);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

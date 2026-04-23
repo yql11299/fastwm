@@ -1,0 +1,275 @@
+/**
+ * PDF 渲染服务
+ * 混合方案：pdf-lib 保持 PDF 矢量 + Canvas 渲染水印文字叠加
+ *
+ * 水印参数说明：
+ * - x, y: 水印中心点坐标 (0-1，相对值)
+ * - scale: 字体大小 (0-1，相对于背景宽度的比例，如 0.05 表示字体大小为背景宽度的 5%)
+ * - rotation: 旋转角度 (度)
+ * - opacity: 透明度 (0-1)
+ * - font: 字体名称
+ * - color: 颜色 (#RRGGBB)
+ *
+ * 渲染一致性：
+ * - 使用 watermarkRenderer.js 中的统一 Path2D 渲染逻辑
+ * - 前后端渲染效果保持一致
+ */
+
+import { PDFDocument } from 'pdf-lib';
+import fs from 'fs/promises';
+import path from 'path';
+import { config } from '../config/index.js';
+import { renderWatermarkToCanvas as renderWatermark } from './watermarkRenderer.js';
+
+/**
+ * 从文件路径检测图片类型
+ * @param {string} filePath - 文件路径
+ * @returns {string}
+ */
+function detectImageType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const typeMap = {
+    '.jpg': 'jpeg',
+    '.jpeg': 'jpeg',
+    '.png': 'png',
+  };
+  return typeMap[ext] || 'jpeg';
+}
+
+/**
+ * 将 hex 颜色转换为 RGB
+ * @param {string} hex - 十六进制颜色
+ * @returns {Object} { r, g, b }
+ */
+function hexToRgb(hex) {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
+  const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
+  const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+  return { r, g, b };
+}
+
+/**
+ * 在 Canvas 上渲染水印文字，返回 PNG 图像数据
+ * 使用 watermarkRenderer 的统一渲染逻辑
+ *
+ * @param {Object} watermark - 水印参数
+ * @param {number} width - Canvas 宽度
+ * @param {number} height - Canvas 高度
+ * @returns {Promise<{canvas: Object, width: number, height: number}>}
+ */
+async function renderWatermarkToCanvas(watermark, width, height) {
+  return renderWatermark(watermark, width, height, config.dirs.fonts);
+}
+
+/**
+ * 为图片添加水印并创建 PDF
+ * @param {string} imagePath - 图片文件路径
+ * @param {Object} watermark - 水印参数
+ * @returns {Promise<Buffer>} PDF 文件 buffer
+ */
+async function addWatermarkToImage(imagePath, watermark) {
+  // 读取图片文件
+  const imageBuffer = await fs.readFile(imagePath);
+  const imageType = detectImageType(imagePath);
+
+  // 创建 PDF 文档
+  const pdfDoc = await PDFDocument.create();
+
+  // 嵌入图片
+  let embeddedImage;
+  if (imageType === 'jpeg') {
+    embeddedImage = await pdfDoc.embedJpg(imageBuffer);
+  } else if (imageType === 'png') {
+    embeddedImage = await pdfDoc.embedPng(imageBuffer);
+  } else {
+    throw new Error(`不支持的图片格式: ${imageType}`);
+  }
+
+  const width = embeddedImage.width;
+  const height = embeddedImage.height;
+
+  // 创建页面
+  const page = pdfDoc.addPage([width, height]);
+
+  // 绘制原图
+  page.drawImage(embeddedImage, {
+    x: 0,
+    y: 0,
+    width,
+    height,
+  });
+
+  // 渲染水印到 Canvas
+  const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height);
+
+  // 将 Canvas 转为 PNG
+  const watermarkImageData = watermarkCanvas.toBuffer('image/png');
+
+  // 嵌入水印图像
+  const watermarkImage = await pdfDoc.embedPng(watermarkImageData);
+
+  // 叠加水印图像（透明背景会自动混合）
+  page.drawImage(watermarkImage, {
+    x: 0,
+    y: 0,
+    width,
+    height,
+  });
+
+  return Buffer.from(await pdfDoc.save());
+}
+
+/**
+ * 为 PDF 添加水印（保持矢量内容）
+ * @param {string} pdfPath - PDF 文件路径
+ * @param {Object} watermark - 水印参数
+ * @returns {Promise<Buffer>} 处理后的 PDF buffer
+ */
+async function addWatermarkToPdf(pdfPath, watermark) {
+  // 读取 PDF 文件
+  const pdfBuffer = await fs.readFile(pdfPath);
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+  // 获取页面列表
+  const pages = pdfDoc.getPages();
+  const numPages = pages.length;
+  console.log(`[pdfRenderer] PDF 共有 ${numPages} 页`);
+
+  // 对每一页进行处理
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const { width, height } = page.getSize();
+
+    console.log(`[pdfRenderer] 处理第 ${i + 1} 页，尺寸: ${width}x${height}`);
+
+    // 渲染水印到 Canvas
+    const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height);
+
+    // 将 Canvas 转为 PNG
+    const watermarkImageData = watermarkCanvas.toBuffer('image/png');
+
+    // 嵌入水印图像
+    const watermarkImage = await pdfDoc.embedPng(watermarkImageData);
+
+    // 叠加水印图像到页面
+    page.drawImage(watermarkImage, {
+      x: 0,
+      y: 0,
+      width,
+      height,
+    });
+  }
+
+  return Buffer.from(await pdfDoc.save());
+}
+
+/**
+ * 批量处理文件添加水印
+ * @param {Array<string>} filePaths - 文件路径列表
+ * @param {Object} watermark - 水印参数
+ * @param {Object} exportConfig - 导出配置
+ * @returns {Promise<Object>}
+ */
+async function batchProcessFiles(filePaths, watermark, exportConfig) {
+  const results = [];
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const taskId = `task_${timestamp}`;
+
+  const exportDir = path.join(config.dirs.exports, taskId);
+  await fs.mkdir(exportDir, { recursive: true });
+
+  for (const filePath of filePaths) {
+    try {
+      const ext = path.extname(filePath).toLowerCase();
+      let outputBuffer;
+
+      if (ext === '.pdf') {
+        outputBuffer = await addWatermarkToPdf(filePath, watermark);
+      } else {
+        outputBuffer = await addWatermarkToImage(filePath, watermark);
+      }
+
+      const baseName = path.basename(filePath, ext);
+      let outputName;
+
+      switch (exportConfig.namingRule) {
+        case 'original':
+          outputName = `${baseName}.pdf`;
+          break;
+        case 'timestamp':
+          outputName = `${baseName}_${timestamp}.pdf`;
+          break;
+        case 'text':
+          outputName = `${baseName}_${watermark.text}.pdf`;
+          break;
+        case 'timestamp_text':
+        default:
+          outputName = `${baseName}_${timestamp}_${watermark.text}.pdf`;
+          break;
+      }
+
+      const outputPath = path.join(exportDir, outputName);
+      await fs.writeFile(outputPath, outputBuffer);
+
+      results.push({
+        fileId: path.basename(filePath),
+        status: 'success',
+        outputPath: path.join(taskId, outputName),
+      });
+    } catch (error) {
+      console.error(`[pdfRenderer] 处理文件失败 ${filePath}:`, error);
+      results.push({
+        fileId: path.basename(filePath),
+        status: 'failed',
+        error: error.message,
+      });
+    }
+  }
+
+  return {
+    taskId,
+    results,
+    exportDir,
+  };
+}
+
+/**
+ * 创建带水印的 PDF
+ * @param {Object} watermark - 水印参数
+ * @param {number} width - 页面宽度
+ * @param {number} height - 页面高度
+ * @returns {Promise<Buffer>}
+ */
+async function createWatermarkedPdf(watermark, width = 595, height = 842) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([width, height]);
+
+  // 渲染水印到 Canvas
+  const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height);
+
+  // 将 Canvas 转为 PNG
+  const watermarkImageData = watermarkCanvas.toBuffer('image/png');
+
+  // 嵌入水印图像
+  const watermarkImage = await pdfDoc.embedPng(watermarkImageData);
+
+  // 叠加水印图像
+  page.drawImage(watermarkImage, {
+    x: 0,
+    y: 0,
+    width,
+    height,
+  });
+
+  return Buffer.from(await pdfDoc.save());
+}
+
+export default {
+  addWatermarkToImage,
+  addWatermarkToPdf,
+  batchProcessFiles,
+  createWatermarkedPdf,
+  hexToRgb,
+  detectImageType,
+};

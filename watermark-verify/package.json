@@ -1,0 +1,15 @@
+{
+  "name": "watermark-verify",
+  "version": "1.0.0",
+  "description": "Verify watermark rendering with opentype.js + pdf-lib",
+  "main": "verify.js",
+  "type": "module",
+  "scripts": {
+    "verify": "node verify.js"
+  },
+  "dependencies": {
+    "opentype.js": "^1.3.4",
+    "pdf-lib": "^1.17.1",
+    "jimp": "^1.6.0"
+  }
+}
