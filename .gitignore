@@ -64,10 +64,15 @@ desktop.ini
 server/data/
 server/exports/
 
-# 字体（如果字体文件过大，可选择不提交）
+# 字体文件（不要提交大文件）
 fonts/*.ttf
 fonts/*.otf
-!fonts/.gitkeep
+fonts/*.ttc
+fonts/.gitkeep
+server/fonts/*.ttf
+server/fonts/*.otf
+server/fonts/*.ttc
+server/fonts/.gitkeep
 
 # 测试文件
 test_*
