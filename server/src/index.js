@@ -2,6 +2,7 @@
  * 证件水印处理系统 - 后端服务入口
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
