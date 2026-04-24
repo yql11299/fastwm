@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===========================================
-# 证件水印处理系统 - PM2 部署脚本
+# 证件水印处理系统 - PM2 部署脚本 (Linux 版)
 # ===========================================
 
 set -e
@@ -39,8 +39,6 @@ if ! command -v node &> /dev/null; then
     printf '    sudo yum install -y nodejs\n'
     printf '\n  macOS:\n'
     printf '    brew install node@20\n'
-    printf '\n  Windows:\n'
-    printf '    下载 https://nodejs.org/\n'
     printf '\n'
     exit 1
 fi
@@ -108,53 +106,6 @@ install_canvas_deps() {
 install_canvas_deps 2>/dev/null || true
 
 # ===========================================
-# 设置 WSL 端口转发（让 Windows 能访问 WSL 中的服务）
-# ===========================================
-
-setup_wsl_port_forwarding() {
-    # 检测是否在 WSL 环境中
-    if grep -qi microsoft /proc/version 2>/dev/null; then
-        printf '\n%b检测到 WSL 环境，设置端口转发...%b\n' "$CYAN" "$NC"
-
-        # WSL 的默认网关 IP
-        WSL_GATEWAY_IP=$(ip route | grep default | awk '{print $3}' | head -1)
-        WSL_LOCAL_IP=$(hostname -I | awk '{print $1}' | head -1)
-
-        printf '  WSL 网关 IP: %s\n' "$WSL_GATEWAY_IP"
-        printf '  WSL 本地 IP: %s\n' "$WSL_LOCAL_IP"
-
-        # 检查是否已有端口转发规则（避免重复添加）
-        if netsh interface portproxy show all 2>/dev/null | grep -q ":${SERVER_PORT}"; then
-            printf '  端口 %s 转发已配置\n' "$SERVER_PORT"
-        else
-            # 添加端口转发规则（将 Windows 的端口转发到 WSL）
-            # 注意：这需要管理员权限
-            netsh interface portproxy add v4tov4 listenport=${SERVER_PORT} listenaddress=127.0.0.1 connectport=${SERVER_PORT} connectaddress=${WSL_LOCAL_IP} 2>/dev/null || {
-                printf '%b⚠ 端口转发设置失败，需要管理员权限%b\n' "$YELLOW" "$NC"
-                printf '  请手动以管理员身份运行以下命令：\n'
-                printf '    netsh interface portproxy add v4tov4 listenport=%s listenaddress=127.0.0.1 connectport=%s connectaddress=%s\n' "$SERVER_PORT" "$SERVER_PORT" "$WSL_LOCAL_IP"
-            }
-
-            # 同样转发前端端口（如果不同）
-            if [ "$CLIENT_PORT" != "5173" ]; then
-                netsh interface portproxy add v4tov4 listenport=${CLIENT_PORT} listenaddress=127.0.0.1 connectport=${CLIENT_PORT} connectaddress=${WSL_LOCAL_IP} 2>/dev/null || true
-            fi
-
-            printf '%b✓ 端口转发设置完成%b\n' "$GREEN" "$NC"
-        fi
-
-        # 返回 WSL 网关 IP 作为 Windows 可访问的后端地址
-        WINDOWS_ACCESS_IP="127.0.0.1"
-    else
-        # 非 WSL 环境，直接使用本地 IP
-        WINDOWS_ACCESS_IP="$WSL_LOCAL_IP"
-    fi
-}
-
-# 设置端口转发
-setup_wsl_port_forwarding 2>/dev/null || true
-
-# ===========================================
 # 设置 npm 镜像（国内加速）
 # ===========================================
 
@@ -189,16 +140,29 @@ printf '前端 Web 端口 [%b5173%b]: ' "$YELLOW" "$NC"
 read CLIENT_PORT
 CLIENT_PORT=${CLIENT_PORT:-5173}
 
-if command -v hostname &> /dev/null; then
-    SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
-else
-    SERVER_IP="localhost"
-fi
+# 获取本机 IP 地址（局域网 IP）
+get_lan_ip() {
+    local ip=""
+    # 优先获取局域网 IP（排除 loopback 和 docker）
+    if command -v ip &> /dev/null; then
+        ip=$(ip route get 1 2>/dev/null | grep -o 'src [0-9.]*' | cut -d' ' -f2 | head -1)
+    fi
+    if [ -z "$ip" ] || [ "$ip" = "127.0.0.1" ]; then
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}' | head -1)
+    fi
+    if [ -z "$ip" ] || [ "$ip" = "127.0.0.1" ]; then
+        ip="localhost"
+    fi
+    echo "$ip"
+}
+
+SERVER_IP=$(get_lan_ip)
 
 printf '\n'
 printf '%b[1/6] 端口配置:%b\n' "$GREEN" "$NC"
 printf '  - 后端 API: %s:%s\n' "$SERVER_IP" "$SERVER_PORT"
-printf '  - 前端 Web:  http://%s:%s\n' "$SERVER_IP" "$CLIENT_PORT"
+printf '  - 前端 Web: http://%s:%s\n' "$SERVER_IP" "$CLIENT_PORT"
+printf '  - 服务可被局域网内其他机器访问\n'
 printf '\n'
 
 # ===========================================
@@ -312,15 +276,9 @@ fi
 
 printf '  执行 npm run build...\n'
 
-# 确定 Windows 可访问的后端地址
-if [ -z "$WINDOWS_ACCESS_IP" ]; then
-    WINDOWS_ACCESS_IP="127.0.0.1"
-fi
-
-printf '  Windows 访问地址: http://%s:%s/api\n' "$WINDOWS_ACCESS_IP" "$SERVER_PORT"
-
-# 构建前端，指定后端 API 地址
-if VITE_API_URL="http://${WINDOWS_ACCESS_IP}:${SERVER_PORT}/api" npm run build 2>&1; then
+# 构建前端，指定后端 API 地址（使用实际 IP，而非 127.0.0.1）
+# 这样局域网内其他机器访问时也能正确调用后端 API
+if VITE_API_URL="http://${SERVER_IP}:${SERVER_PORT}/api" npm run build 2>&1; then
     printf '  前端构建完成\n'
 else
     printf '%b✗ 前端构建失败%b\n' "$RED" "$NC"
@@ -344,6 +302,7 @@ fi
 
 # 修改端口配置
 if [ -f "server/.env" ]; then
+    # 使用 sed 修改 PORT（兼容 Linux 和 macOS）
     sed -i.bak "s/^PORT=.*/PORT=$SERVER_PORT/" "server/.env" 2>/dev/null || \
     sed -i '' "s/^PORT=.*/PORT=$SERVER_PORT/" "server/.env" 2>/dev/null || true
     rm -f "server/.env.bak" 2>/dev/null || true
@@ -377,7 +336,10 @@ if pm2 list | grep -q "online"; then
     printf '%b  部署成功！%b\n' "$GREEN" "$NC"
     printf '%b===========================================%b\n' "$GREEN" "$NC"
     printf '\n'
-    printf '访问地址: %bhttp://%s:%s%b\n' "$CYAN" "$SERVER_IP" "$CLIENT_PORT" "$NC"
+    printf '本机访问地址: %bhttp://%s:%s%b\n' "$CYAN" "$SERVER_IP" "$CLIENT_PORT" "$NC"
+    printf '\n'
+    printf '%b局域网访问说明:%b\n' "$YELLOW" "$NC"
+    printf '  局域网内其他机器浏览器打开: http://%s:%s\n' "$SERVER_IP" "$CLIENT_PORT"
     printf '\n'
     printf '%b常用命令:%b\n' "$YELLOW" "$NC"
     printf '  查看日志:   pm2 logs\n'
