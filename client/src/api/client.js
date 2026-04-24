@@ -334,6 +334,25 @@ export const documentsApi = {
   },
 };
 
+// 背景文件相关
+export const backgroundApi = {
+  // 上传背景文件（本地文件需要先上传）
+  async uploadBackground(fileData, fileName, mimeType) {
+    if (MOCK_MODE) {
+      await delay(500);
+      return { success: true, data: { id: `bg_${Date.now()}`, name: fileName } };
+    }
+    // fileData 是 base64 编码的文件内容
+    return apiClient.post('/background/upload', {
+      file: {
+        name: fileName,
+        data: fileData,
+        mimeType: mimeType,
+      },
+    });
+  },
+};
+
 // 布局相关
 export const layoutApi = {
   // 获取布局

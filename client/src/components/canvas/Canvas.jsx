@@ -5,7 +5,7 @@ import TransformHandles from './TransformHandles';
 import BackgroundUpload from './BackgroundUpload';
 import PropertyPanel from './PropertyPanel';
 import useAppStore from '../../stores/appStore';
-import { schemesApi, documentsApi, settingsApi, processApi } from '../../api/client';
+import { schemesApi, documentsApi, settingsApi, processApi, backgroundApi } from '../../api/client';
 import { drawWatermarkOnCanvas, fetchTextPaths } from '../../utils/watermarkRenderer';
 import { renderPdfBufferToCanvas } from '../../utils/pdfRenderer';
 import styles from './Canvas.module.css';
@@ -534,9 +534,35 @@ export default function Canvas() {
       return;
     }
 
-    // 从 canvasBackground 中获取 fileId
+    // 从 canvasBackground 中获取信息
     const currentBackground = useAppStore.getState().canvasBackground;
-    if (!currentBackground?.fileId) {
+    let fileIdToUse = currentBackground?.fileId;
+
+    // 如果是本地文件（没有 fileId），需要先上传到服务器
+    if (!fileIdToUse && currentBackground?.dataUrl) {
+      try {
+        // 提取 base64 数据
+        const base64Data = currentBackground.dataUrl.split(',')[1];
+        const mimeType = currentBackground.dataUrl.split(';')[0].replace('data:', '');
+        const fileName = currentBackground.fileName || 'background.jpg';
+
+        // 调用上传接口
+        const uploadResult = await backgroundApi.uploadBackground(base64Data, fileName, mimeType);
+
+        if (uploadResult.success && uploadResult.data?.id) {
+          fileIdToUse = uploadResult.data.id;
+        } else {
+          alert('背景文件上传失败，请稍后重试');
+          return;
+        }
+      } catch (err) {
+        console.error('Upload background error:', err);
+        alert('背景文件上传失败，请稍后重试');
+        return;
+      }
+    }
+
+    if (!fileIdToUse) {
       alert('背景文件信息不完整，请重新选择');
       return;
     }
@@ -544,7 +570,7 @@ export default function Canvas() {
     try {
       const result = await processApi.processWatermark({
         watermark: watermark,
-        fileIds: [currentBackground.fileId],
+        fileIds: [fileIdToUse],
         exportConfig: {
           namingRule: 'timestamp_text',
           quality: 100,
