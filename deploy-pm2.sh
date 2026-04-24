@@ -108,6 +108,53 @@ install_canvas_deps() {
 install_canvas_deps 2>/dev/null || true
 
 # ===========================================
+# 设置 WSL 端口转发（让 Windows 能访问 WSL 中的服务）
+# ===========================================
+
+setup_wsl_port_forwarding() {
+    # 检测是否在 WSL 环境中
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        printf '\n%b检测到 WSL 环境，设置端口转发...%b\n' "$CYAN" "$NC"
+
+        # WSL 的默认网关 IP
+        WSL_GATEWAY_IP=$(ip route | grep default | awk '{print $3}' | head -1)
+        WSL_LOCAL_IP=$(hostname -I | awk '{print $1}' | head -1)
+
+        printf '  WSL 网关 IP: %s\n' "$WSL_GATEWAY_IP"
+        printf '  WSL 本地 IP: %s\n' "$WSL_LOCAL_IP"
+
+        # 检查是否已有端口转发规则（避免重复添加）
+        if netsh interface portproxy show all 2>/dev/null | grep -q ":${SERVER_PORT}"; then
+            printf '  端口 %s 转发已配置\n' "$SERVER_PORT"
+        else
+            # 添加端口转发规则（将 Windows 的端口转发到 WSL）
+            # 注意：这需要管理员权限
+            netsh interface portproxy add v4tov4 listenport=${SERVER_PORT} listenaddress=127.0.0.1 connectport=${SERVER_PORT} connectaddress=${WSL_LOCAL_IP} 2>/dev/null || {
+                printf '%b⚠ 端口转发设置失败，需要管理员权限%b\n' "$YELLOW" "$NC"
+                printf '  请手动以管理员身份运行以下命令：\n'
+                printf '    netsh interface portproxy add v4tov4 listenport=%s listenaddress=127.0.0.1 connectport=%s connectaddress=%s\n' "$SERVER_PORT" "$SERVER_PORT" "$WSL_LOCAL_IP"
+            }
+
+            # 同样转发前端端口（如果不同）
+            if [ "$CLIENT_PORT" != "5173" ]; then
+                netsh interface portproxy add v4tov4 listenport=${CLIENT_PORT} listenaddress=127.0.0.1 connectport=${CLIENT_PORT} connectaddress=${WSL_LOCAL_IP} 2>/dev/null || true
+            fi
+
+            printf '%b✓ 端口转发设置完成%b\n' "$GREEN" "$NC"
+        fi
+
+        # 返回 WSL 网关 IP 作为 Windows 可访问的后端地址
+        WINDOWS_ACCESS_IP="127.0.0.1"
+    else
+        # 非 WSL 环境，直接使用本地 IP
+        WINDOWS_ACCESS_IP="$WSL_LOCAL_IP"
+    fi
+}
+
+# 设置端口转发
+setup_wsl_port_forwarding 2>/dev/null || true
+
+# ===========================================
 # 设置 npm 镜像（国内加速）
 # ===========================================
 
@@ -265,22 +312,15 @@ fi
 
 printf '  执行 npm run build...\n'
 
-# 检测 Windows 宿主机 IP（WSL 访问 Windows 网络的网关IP）
-if command -v ip &> /dev/null; then
-    # 尝试从路由表获取 Windows 宿主机 IP
-    WINDOWS_HOST_IP=$(ip route | grep default | awk '{print $3}' | head -1)
-    if [ -z "$WINDOWS_HOST_IP" ]; then
-        WINDOWS_HOST_IP="172.17.0.1"  # Docker 默认网关
-    fi
-else
-    WINDOWS_HOST_IP="172.17.0.1"
+# 确定 Windows 可访问的后端地址
+if [ -z "$WINDOWS_ACCESS_IP" ]; then
+    WINDOWS_ACCESS_IP="127.0.0.1"
 fi
 
-printf '  检测到 Windows 宿主机 IP: %s\n' "$WINDOWS_HOST_IP"
-printf '  后端 API 地址: http://%s:%s/api\n' "$WINDOWS_HOST_IP" "$SERVER_PORT"
+printf '  Windows 访问地址: http://%s:%s/api\n' "$WINDOWS_ACCESS_IP" "$SERVER_PORT"
 
 # 构建前端，指定后端 API 地址
-if VITE_API_URL="http://${WINDOWS_HOST_IP}:${SERVER_PORT}/api" npm run build 2>&1; then
+if VITE_API_URL="http://${WINDOWS_ACCESS_IP}:${SERVER_PORT}/api" npm run build 2>&1; then
     printf '  前端构建完成\n'
 else
     printf '%b✗ 前端构建失败%b\n' "$RED" "$NC"
