@@ -264,7 +264,23 @@ else
 fi
 
 printf '  执行 npm run build...\n'
-if npm run build 2>&1; then
+
+# 检测 Windows 宿主机 IP（WSL 访问 Windows 网络的网关IP）
+if command -v ip &> /dev/null; then
+    # 尝试从路由表获取 Windows 宿主机 IP
+    WINDOWS_HOST_IP=$(ip route | grep default | awk '{print $3}' | head -1)
+    if [ -z "$WINDOWS_HOST_IP" ]; then
+        WINDOWS_HOST_IP="172.17.0.1"  # Docker 默认网关
+    fi
+else
+    WINDOWS_HOST_IP="172.17.0.1"
+fi
+
+printf '  检测到 Windows 宿主机 IP: %s\n' "$WINDOWS_HOST_IP"
+printf '  后端 API 地址: http://%s:%s/api\n' "$WINDOWS_HOST_IP" "$SERVER_PORT"
+
+# 构建前端，指定后端 API 地址
+if VITE_API_URL="http://${WINDOWS_HOST_IP}:${SERVER_PORT}/api" npm run build 2>&1; then
     printf '  前端构建完成\n'
 else
     printf '%b✗ 前端构建失败%b\n' "$RED" "$NC"

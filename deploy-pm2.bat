@@ -195,6 +195,22 @@ if not exist "node_modules" (
 )
 
 echo   执行 npm run build...
+
+:: 检测 WSL IP（如果服务在 WSL 中运行）
+set "WSL_IP="
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "vEthernet" ^| findstr /i "172"') do (
+    for /f "tokens=1" %%b in ("%%a") do (
+        if not defined WSL_IP set "WSL_IP=%%b"
+    )
+)
+
+if not defined WSL_IP set "WSL_IP=172.17.0.1"
+
+echo   检测到 WSL IP: %WSL_IP%
+echo   后端 API 地址: http://%WSL_IP%:%SERVER_PORT%/api
+
+:: 构建前端，指定后端 API 地址
+set "VITE_API_URL=http://%WSL_IP%:%SERVER_PORT%/api"
 call npm run build
 if %errorlevel% neq 0 (
     echo [错误] 前端构建失败
