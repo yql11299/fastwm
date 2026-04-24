@@ -52,6 +52,7 @@ export default function Canvas() {
   const [canvasInitialized, setCanvasInitialized] = useState(false);
   const [renderTrigger, setRenderTrigger] = useState(0); // 用于强制触发水印重渲染
   const prevBackgroundIdRef = useRef(null);
+  const [isDragOverBg, setIsDragOverBg] = useState(false);
 
   // 每次进入画布时，从后端 API 获取默认方案并初始化
   useEffect(() => {
@@ -154,7 +155,7 @@ export default function Canvas() {
 
         if (fileType === 'pdf') {
           // PDF 文件
-          setCanvasBackground({ type: 'pdf', dataUrl });
+          setCanvasBackground({ type: 'pdf', dataUrl, fileName, fileId: backgroundId });
           setCanvasSize({ width: 595, height: 842 }); // 默认 A4 尺寸，后续会更新
         } else {
           // 图片文件
@@ -164,7 +165,7 @@ export default function Canvas() {
               width: img.naturalWidth,
               height: img.naturalHeight,
             });
-            setCanvasBackground({ type: 'image', dataUrl });
+            setCanvasBackground({ type: 'image', dataUrl, fileName, fileId: backgroundId });
           };
           img.onerror = () => {
             setBgError('图片加载失败');
@@ -521,11 +522,10 @@ export default function Canvas() {
     alert('已设为预设方案');
   };
 
-  // 应用水印 - 使用当前水印参数直接导出
+  // 应用水印 - 使用当前画布背景和水印参数直接导出
   const handleApplyWatermark = async () => {
-    const backgroundId = searchParams.get('backgroundId');
-    if (!backgroundId) {
-      alert('没有选中的文件，请先选择背景文件');
+    if (!canvasBackground) {
+      alert('没有背景文件，请先选择背景');
       return;
     }
 
@@ -534,10 +534,17 @@ export default function Canvas() {
       return;
     }
 
+    // 从 canvasBackground 中获取 fileId
+    const currentBackground = useAppStore.getState().canvasBackground;
+    if (!currentBackground?.fileId) {
+      alert('背景文件信息不完整，请重新选择');
+      return;
+    }
+
     try {
       const result = await processApi.processWatermark({
         watermark: watermark,
-        fileIds: [backgroundId],
+        fileIds: [currentBackground.fileId],
         exportConfig: {
           namingRule: 'timestamp_text',
           quality: 100,
@@ -689,11 +696,61 @@ export default function Canvas() {
               </div>
             )}
           </div>
-          <div className={styles.canvasWrapper} ref={containerRef}>
+          <div
+            className={`${styles.canvasWrapper} ${isDragOverBg ? styles.dragOver : ''}`}
+            ref={containerRef}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragOverBg(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragOverBg(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragOverBg(false);
+
+              const file = e.dataTransfer.files?.[0];
+              if (!file) return;
+
+              // 处理拖拽的本地文件
+              const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+              if (!validTypes.includes(file.type)) {
+                setBgError('仅支持 JPG、PNG、PDF 文件');
+                return;
+              }
+
+              // 使用 FileReader 读取文件
+              const reader = new FileReader();
+              reader.onload = (evt) => {
+                const dataUrl = evt.target.result;
+
+                if (file.type === 'application/pdf') {
+                  setCanvasBackground({ type: 'pdf', dataUrl, fileName: file.name, fileId: null });
+                  setCanvasSize({ width: 595, height: 842 });
+                } else {
+                  const img = new Image();
+                  img.onload = () => {
+                    setCanvasSize({ width: img.naturalWidth, height: img.naturalHeight });
+                    setCanvasBackground({ type: 'image', dataUrl, fileName: file.name, fileId: null });
+                  };
+                  img.onerror = () => setBgError('图片加载失败');
+                  img.src = dataUrl;
+                }
+              };
+              reader.onerror = () => setBgError('文件读取失败');
+              reader.readAsDataURL(file);
+            }}
+          >
             {/* 背景 Canvas - 使用实际像素尺寸 */}
             <canvas
               ref={bgCanvasRef}
               data-bg-canvas
+              className={isDragOverBg ? styles.dragOver : ''}
               style={{
                 position: 'absolute',
                 top: 0,

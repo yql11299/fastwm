@@ -103,6 +103,14 @@
   border-radius: var(--radius-md);
 }
 
+.canvasWrapper.dragOver {
+  background-color: var(--color-bg-selected);
+}
+
+.canvasWrapper.dragOver canvas[data-bg-canvas] {
+  border: 2px dashed var(--color-primary);
+}
+
 .canvas {
   width: 100%;
   height: 100%;

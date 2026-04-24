@@ -82,7 +82,7 @@ export default function BackgroundUpload() {
         const dataUrl = `data:${mimeType};base64,${content}`;
 
         if (mimeType === 'application/pdf') {
-          setCanvasBackground({ type: 'pdf', dataUrl, fileName });
+          setCanvasBackground({ type: 'pdf', dataUrl, fileName, fileId: file.id });
           setCanvasSize({ width: 595, height: 842 });
         } else {
           // 图片需要先获取尺寸
@@ -92,7 +92,7 @@ export default function BackgroundUpload() {
               width: img.naturalWidth,
               height: img.naturalHeight,
             });
-            setCanvasBackground({ type: 'image', dataUrl, fileName });
+            setCanvasBackground({ type: 'image', dataUrl, fileName, fileId: file.id });
           };
           img.onerror = () => {
             setError('图片加载失败');
