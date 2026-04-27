@@ -75,7 +75,7 @@ export default function LayoutCanvas() {
       if (result.success) {
         setFileList(result.data.items || []);
         setFileCurrentPath(result.data.currentPath || path);
-        setFileParentPath(result.data.parentPath || null);
+        setFileParentPath(result.data.parentPath ?? null);
       }
     } catch (err) {
       console.error('Load file list error:', err);
