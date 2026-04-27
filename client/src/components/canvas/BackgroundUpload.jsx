@@ -29,7 +29,7 @@ export default function BackgroundUpload() {
       if (result.success) {
         setFileList(result.data.items || []);
         setCurrentPath(result.data.currentPath || path);
-        setParentPath(result.data.parentPath || null);
+        setParentPath(result.data.parentPath ?? null);
       } else {
         setError(result.error?.message || '加载文件列表失败');
       }
