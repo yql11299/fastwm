@@ -28,8 +28,13 @@ export default function LayoutCanvas() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [availableDocuments, setAvailableDocuments] = useState([]);
   const [selectedToAdd, setSelectedToAdd] = useState([]);
+
+  // 文件选择弹窗状态（与 BackgroundUpload 一致的目录浏览）
+  const [fileCurrentPath, setFileCurrentPath] = useState('');
+  const [fileList, setFileList] = useState([]);
+  const [fileParentPath, setFileParentPath] = useState(null);
+  const [loadingFiles, setLoadingFiles] = useState(false);
 
   // 拖拽状态
   const [draggedId, setDraggedId] = useState(null);
@@ -62,20 +67,42 @@ export default function LayoutCanvas() {
     loadData();
   }, [setFavorites, setLayoutItems]);
 
-  // 加载可用证件（从服务器文档目录）
-  useEffect(() => {
-    const loadAvailable = async () => {
-      const result = await documentsApi.getDocuments();
+  // 加载文件列表（与 BackgroundUpload 一致的目录浏览逻辑）
+  const loadFileList = useCallback(async (path = '') => {
+    setLoadingFiles(true);
+    try {
+      const result = await documentsApi.getDocuments(path || '', 'jpg,jpeg,png,pdf');
       if (result.success) {
-        const favIds = new Set(favorites.map(f => f.id));
-        const available = (result.data.items || []).filter(doc => !favIds.has(doc.id));
-        setAvailableDocuments(available);
+        setFileList(result.data.items || []);
+        setFileCurrentPath(result.data.currentPath || path);
+        setFileParentPath(result.data.parentPath || null);
       }
-    };
-    if (showAddDialog) {
-      loadAvailable();
+    } catch (err) {
+      console.error('Load file list error:', err);
+    } finally {
+      setLoadingFiles(false);
     }
-  }, [showAddDialog, favorites]);
+  }, []);
+
+  // 打开添加弹窗时加载文件列表
+  useEffect(() => {
+    if (showAddDialog) {
+      setSelectedToAdd([]);
+      loadFileList(fileCurrentPath);
+    }
+  }, [showAddDialog, fileCurrentPath, loadFileList]);
+
+  // 返回上级目录
+  const handleGoBack = useCallback(() => {
+    if (fileParentPath) {
+      loadFileList(fileParentPath);
+    }
+  }, [fileParentPath, loadFileList]);
+
+  // 点击目录进入
+  const handleDirectoryClick = useCallback((path) => {
+    loadFileList(path);
+  }, [loadFileList]);
 
   // 根据布局配置将证件分组显示（与首页一致）
   const documentsByRow = useMemo(() => {
@@ -359,7 +386,7 @@ export default function LayoutCanvas() {
     let nextRow = maxRow + 1;
 
     selectedToAdd.forEach(docId => {
-      const doc = availableDocuments.find(d => d.id === docId);
+      const doc = fileList.find(d => d.id === docId);
       if (doc) {
         newFavorites.push(doc);
         newLayoutItems.push({
@@ -739,22 +766,85 @@ export default function LayoutCanvas() {
             </div>
             <div className={styles.modalContent}>
               <p className={styles.dialogHint}>从服务器文件目录选择证件添加到常用列表</p>
-              {availableDocuments.length === 0 ? (
-                <p className={styles.noFiles}>服务器目录暂无其他文件</p>
-              ) : (
-                <div className={styles.fileList}>
-                  {availableDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`${styles.fileItem} ${selectedToAdd.includes(doc.id) ? styles.selected : ''}`}
-                      onClick={() => toggleSelectToAdd(doc.id)}
-                    >
-                      <span className={styles.fileName}>{getNameWithoutExtension(doc.name)}</span>
-                      <span className={styles.fileType}>.{doc.type}</span>
-                    </div>
-                  ))}
-                </div>
+
+              {/* 路径导航 */}
+              <div className={styles.pathNav}>
+                <span className={styles.currentPath}>
+                  {fileCurrentPath === '' ? '全部文件' : fileCurrentPath}
+                </span>
+              </div>
+
+              {/* 返回上级按钮 */}
+              {fileParentPath !== null && (
+                <button className={styles.backBtn} onClick={handleGoBack}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  返回上级
+                </button>
               )}
+
+              {/* 文件列表 */}
+              <div className={styles.fileList}>
+                {loadingFiles ? (
+                  <div className={styles.loadingFiles}>加载中...</div>
+                ) : fileList.length === 0 ? (
+                  <div className={styles.noFiles}>目录为空</div>
+                ) : (
+                  fileList.map((file) => (
+                    <div
+                      key={file.id}
+                      className={`${styles.fileItem} ${file.isDirectory ? styles.directory : ''} ${selectedToAdd.includes(file.id) ? styles.selected : ''}`}
+                      onClick={() => {
+                        if (file.isDirectory) {
+                          handleDirectoryClick(file.path);
+                        } else {
+                          toggleSelectToAdd(file.id);
+                        }
+                      }}
+                    >
+                      {file.isDirectory ? (
+                        <svg className={styles.fileIcon} viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                        </svg>
+                      ) : file.type === 'pdf' ? (
+                        <svg className={styles.fileIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                      ) : (
+                        <svg className={styles.fileIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                      )}
+                      <div className={styles.fileInfo}>
+                        <span className={styles.fileName}>{getNameWithoutExtension(file.name)}</span>
+                        {!file.isDirectory && (
+                          <span className={styles.fileType}>.{file.type}</span>
+                        )}
+                      </div>
+                      {!file.isDirectory && (
+                        <div className={styles.checkbox}>
+                          {selectedToAdd.includes(file.id) && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </div>
+                      )}
+                      {file.isDirectory && (
+                        <svg className={styles.arrowIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             <div className={styles.modalActions}>
               <button className="btn btn-secondary" onClick={() => setShowAddDialog(false)}>

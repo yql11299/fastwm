@@ -28,29 +28,6 @@
   gap: var(--space-4);
 }
 
-.backBtn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-text-secondary);
-  background: none;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.backBtn:hover {
-  color: var(--color-text);
-  background-color: var(--color-bg-hover);
-}
-
-.backBtn svg {
-  width: 20px;
-  height: 20px;
-}
-
 .title {
   font-size: var(--text-lg);
   font-weight: 600;
@@ -490,6 +467,124 @@
 .fileItem.selected {
   border-color: var(--color-primary);
   background-color: rgba(99, 102, 241, 0.1);
+}
+
+.fileItem.directory {
+  border-style: dashed;
+}
+
+.fileIcon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  margin-right: var(--space-2);
+}
+
+.fileItem.directory .fileIcon {
+  color: var(--color-primary);
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.fileName {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileType {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.fileItem.selected .checkbox {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+}
+
+.checkbox svg {
+  width: 14px;
+  height: 14px;
+  color: white;
+}
+
+.arrowIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  margin-left: var(--space-2);
+}
+
+/* 路径导航 */
+.pathNav {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.currentPath {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+  transition: all var(--transition-fast);
+}
+
+.backBtn:hover {
+  background: var(--color-bg-selected);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.backBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loadingFiles {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .fileName {

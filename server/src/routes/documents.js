@@ -127,9 +127,11 @@ router.get('/', authMiddleware, async (req, res) => {
     // 解析请求的路径
     let targetPath = DOCS_ROOT;
     if (relativePath) {
-      // 防止路径遍历攻击
-      const requestedPath = path.resolve(DOCS_ROOT, relativePath);
-      if (!requestedPath.startsWith(DOCS_ROOT)) {
+      // 清理路径：移除开头的 /，然后使用 path.join 组合
+      // 防止路径遍历攻击，同时兼容 Windows 和 Unix 风格路径
+      const cleanPath = relativePath.replace(/^\/+/, ''); // 移除开头的斜杠
+      const requestedPath = path.normalize(path.join(DOCS_ROOT, cleanPath));
+      if (!requestedPath.startsWith(path.normalize(DOCS_ROOT) + path.sep) && requestedPath !== path.normalize(DOCS_ROOT)) {
         throw new ApiError(400, 'VALIDATION_ERROR', '无效的路径');
       }
       targetPath = requestedPath;
@@ -142,10 +144,17 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 
     // 获取父目录路径
+    // parentPath 为空字符串表示父目录是根目录，为 null 表示无父目录
     let parentPath = null;
     if (targetPath !== DOCS_ROOT) {
-      const relative = path.relative(DOCS_ROOT, path.dirname(targetPath));
-      parentPath = relative === '.' ? null : relative;
+      const parentDir = path.dirname(targetPath);
+      if (parentDir === DOCS_ROOT) {
+        // 父目录是根目录，parentPath 为空字符串
+        parentPath = '';
+      } else {
+        // 父目录是子目录，返回相对路径
+        parentPath = path.relative(DOCS_ROOT, parentDir);
+      }
     }
 
     // 扫描目录

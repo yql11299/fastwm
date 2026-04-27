@@ -15,17 +15,17 @@ export default function BackgroundUpload() {
 
   // 文件选择弹窗状态
   const [showFileDialog, setShowFileDialog] = useState(false);
-  const [currentPath, setCurrentPath] = useState('/documents');
+  const [currentPath, setCurrentPath] = useState('');
   const [fileList, setFileList] = useState([]);
   const [parentPath, setParentPath] = useState(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
 
   // 加载文件列表
-  const loadFileList = useCallback(async (path = '/documents') => {
+  const loadFileList = useCallback(async (path = '') => {
     setLoadingFiles(true);
     setError('');
     try {
-      const result = await documentsApi.getDocuments(path, 'jpg,jpeg,png,pdf');
+      const result = await documentsApi.getDocuments(path || '', 'jpg,jpeg,png,pdf');
       if (result.success) {
         setFileList(result.data.items || []);
         setCurrentPath(result.data.currentPath || path);
@@ -221,12 +221,12 @@ export default function BackgroundUpload() {
               {/* 路径导航 */}
               <div className={styles.pathNav}>
                 <span className={styles.currentPath}>
-                  {currentPath === '/documents' ? '全部文件' : currentPath}
+                  {currentPath === '' ? '全部文件' : currentPath}
                 </span>
               </div>
 
               {/* 返回上级按钮 */}
-              {parentPath && (
+              {parentPath !== null && (
                 <button className={styles.backBtn} onClick={handleGoBack}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="15 18 9 12 15 6" />
