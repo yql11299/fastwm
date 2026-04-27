@@ -325,12 +325,12 @@ export const documentsApi = {
   },
 
   // 添加到常用列表
-  async addFavorites(fileIds) {
+  async addFavorites(fileIds, files) {
     if (MOCK_MODE) {
       await delay(200);
       return { success: true, data: { added: fileIds } };
     }
-    return apiClient.post('/documents/favorites', { fileIds });
+    return apiClient.post('/documents/favorites', { fileIds, files });
   },
 };
 

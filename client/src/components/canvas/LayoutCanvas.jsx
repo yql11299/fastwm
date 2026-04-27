@@ -385,9 +385,16 @@ export default function LayoutCanvas() {
     const newLayoutItems = [...layoutItems];
     let nextRow = maxRow + 1;
 
+    const filesToAdd = [];
     selectedToAdd.forEach(docId => {
       const doc = fileList.find(d => d.id === docId);
       if (doc) {
+        filesToAdd.push({
+          fileId: doc.id,
+          fileName: doc.name,
+          filePath: doc.path,
+          fileType: doc.type,
+        });
         newFavorites.push(doc);
         newLayoutItems.push({
           fileId: doc.id,
@@ -405,6 +412,14 @@ export default function LayoutCanvas() {
     setLayoutItems(newLayoutItems);
     setShowAddDialog(false);
     setSelectedToAdd([]);
+
+    // 保存到后端
+    documentsApi.addFavorites(
+      selectedToAdd,
+      filesToAdd
+    ).catch(err => {
+      console.error('保存常用证件失败:', err);
+    });
   };
 
   const handleFileChange = async (e) => {
