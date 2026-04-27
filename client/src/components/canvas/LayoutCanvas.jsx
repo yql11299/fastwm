@@ -94,7 +94,7 @@ export default function LayoutCanvas() {
 
   // 返回上级目录
   const handleGoBack = useCallback(() => {
-    if (fileParentPath) {
+    if (fileParentPath !== null) {
       loadFileList(fileParentPath);
     }
   }, [fileParentPath, loadFileList]);

@@ -60,7 +60,7 @@ export default function BackgroundUpload() {
 
   // 点击返回上级目录
   const handleGoBack = useCallback(() => {
-    if (parentPath) {
+    if (parentPath !== null) {
       loadFileList(parentPath);
     }
   }, [parentPath, loadFileList]);
