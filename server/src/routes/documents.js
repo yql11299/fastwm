@@ -146,14 +146,15 @@ router.get('/', authMiddleware, async (req, res) => {
     // 获取父目录路径
     // parentPath 为空字符串表示父目录是根目录，为 null 表示无父目录
     let parentPath = null;
-    if (targetPath !== DOCS_ROOT) {
-      const parentDir = path.dirname(targetPath);
-      if (parentDir === DOCS_ROOT) {
+    if (path.normalize(targetPath) !== path.normalize(DOCS_ROOT)) {
+      const parentDirNorm = path.normalize(path.dirname(targetPath));
+      const docsRootNorm = path.normalize(DOCS_ROOT);
+      if (parentDirNorm === docsRootNorm) {
         // 父目录是根目录，parentPath 为空字符串
         parentPath = '';
       } else {
         // 父目录是子目录，返回相对路径
-        parentPath = path.relative(DOCS_ROOT, parentDir);
+        parentPath = path.relative(DOCS_ROOT, parentDirNorm);
       }
     }
 
