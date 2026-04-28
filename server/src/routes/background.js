@@ -39,6 +39,41 @@ function generateBackgroundId(fileName) {
 }
 
 /**
+ * 清理过期的背景文件（只保留今天的）
+ * @returns {Promise<number>} 清理的文件数量
+ */
+async function cleanupOldBackgrounds() {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime() - (now.getTimezoneOffset() + 8 * 60) * 60 * 1000;
+
+  let cleaned = 0;
+  try {
+    await ensureBackgroundsDir();
+    const files = await fs.readdir(BACKGROUNDS_ROOT);
+
+    for (const file of files) {
+      if (!file.startsWith('bg_')) continue;
+      const filePath = path.join(BACKGROUNDS_ROOT, file);
+      try {
+        const stats = await fs.stat(filePath);
+        // 删除不是今天的文件
+        if (stats.mtime.getTime() < todayStartMs) {
+          await fs.unlink(filePath);
+          cleaned++;
+          console.log(`[cleanup] 已清理过期背景文件: ${file}`);
+        }
+      } catch {
+        // 忽略错误
+      }
+    }
+  } catch {
+    // 目录不存在
+  }
+  return cleaned;
+}
+
+/**
  * 验证文件类型
  * @param {string} filePath - 文件路径
  * @returns {boolean}
@@ -97,6 +132,9 @@ async function getImageDimensions(filePath) {
 router.post('/upload', authMiddleware, async (req, res) => {
   try {
     await ensureBackgroundsDir();
+
+    // 清理旧的背景文件（只保留今天的）
+    await cleanupOldBackgrounds();
 
     // 处理 multipart form data
     const { file } = req.body;
