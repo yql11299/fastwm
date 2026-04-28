@@ -83,7 +83,7 @@ cd client && npm test
 
 | 文档 | 说明 |
 |------|------|
-| [PRD](./docs/PRD-证件水印处理系统.md) | 完整需求文档 |
+| [操作指南](./docs/guide/操作指南.md) | Web 前端使用教程 |
 | [开发指南](./docs/guide/开发指南.md) | 本地开发、环境搭建、调试 |
 | [测试指南](./docs/guide/测试指南.md) | 测试框架、运行测试、编写测试 |
 | [部署指南](./docs/guide/部署指南.md) | Docker 部署、生产配置 |

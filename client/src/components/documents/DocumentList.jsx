@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { documentsApi, layoutApi, processApi, schemesApi } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
 import useAppStore from '../../stores/appStore';
+import SettingsModal from '../settings/SettingsModal';
 import styles from './DocumentList.module.css';
 
 /**
@@ -35,6 +36,7 @@ export default function DocumentList() {
   const [watermarkText, setWatermarkText] = useState(watermark.text);
   const [selectedSchemeId, setSelectedSchemeId] = useState('default');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // 加载布局配置和常用证件列表
   useEffect(() => {
@@ -230,6 +232,9 @@ export default function DocumentList() {
         </div>
 
         <div className={styles.headerRight}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowSettings(true)}>
+            设置
+          </button>
           <div className={styles.userInfo}>
             <span className={styles.userAvatar}>{currentUser?.username?.charAt(0).toUpperCase()}</span>
             <span className={styles.userName}>{currentUser?.username}</span>
@@ -359,6 +364,9 @@ export default function DocumentList() {
           </div>
         </div>
       )}
+
+      {/* 设置弹窗 */}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
