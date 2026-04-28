@@ -375,7 +375,9 @@ router.get('/download/:taskId', authMiddleware, async (req, res) => {
         throw new ApiError(500, 'FILE_READ_ERROR', '结果文件无法读取');
       }
 
-      res.download(filePath, result.outputPath.split('/').pop(), (err) => {
+      const fileName = result.outputPath.split('/').pop();
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+      res.download(filePath, fileName, (err) => {
         if (err) {
           console.error('[下载逻辑] 下载失败:', err);
         } else {
@@ -390,7 +392,7 @@ router.get('/download/:taskId', authMiddleware, async (req, res) => {
     const { buffer, fileName } = await watermarkEngine.packageResultsAsZip(taskId);
 
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
     res.send(buffer);
   } catch (error) {
     if (error instanceof ApiError) {
