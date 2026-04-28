@@ -336,8 +336,32 @@ router.put('/favorites', authMiddleware, async (req, res) => {
 
     const favorites = await getFavorites(userId);
 
+    // 验证 fileName 安全性
+    const invalidFileNames = [];
+    for (const update of updates) {
+      if (typeof update.fileName !== 'string' || update.fileName.trim() === '') {
+        invalidFileNames.push(update.fileId);
+        continue;
+      }
+      const trimmedName = update.fileName.trim();
+      // 禁止路径遍历字符
+      if (trimmedName.includes('..') || trimmedName.includes('/') || trimmedName.includes('\\')) {
+        invalidFileNames.push(update.fileId);
+        continue;
+      }
+      // 限制文件名长度
+      if (trimmedName.length > 255) {
+        invalidFileNames.push(update.fileId);
+        continue;
+      }
+    }
+
+    if (invalidFileNames.length > 0) {
+      throw new ApiError(400, 'VALIDATION_ERROR', `无效的文件名: ${invalidFileNames.join(', ')}`);
+    }
+
     // 更新匹配的证件名称
-    const updateMap = new Map(updates.map(u => [u.fileId, u.fileName]));
+    const updateMap = new Map(updates.map(u => [u.fileId, u.fileName.trim()]));
     let updatedCount = 0;
 
     for (const fav of favorites) {
