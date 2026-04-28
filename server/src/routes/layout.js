@@ -100,6 +100,8 @@ router.put('/', authMiddleware, async (req, res) => {
       if (typeof item.order !== 'number' || item.order < 0) {
         throw new ApiError(400, 'VALIDATION_ERROR', '布局项必须包含有效的 order（大于等于0的数字）');
       }
+      // 可选字段：fileName, filePath, fileType
+      // 这些字段在前端重命名时会被更新
     }
 
     const layoutData = {

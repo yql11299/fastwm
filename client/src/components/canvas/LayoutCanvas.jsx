@@ -30,6 +30,13 @@ export default function LayoutCanvas() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedToAdd, setSelectedToAdd] = useState([]);
 
+  // 重命名功能状态
+  const [isRenameMode, setIsRenameMode] = useState(false);
+  const [editingDocId, setEditingDocId] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const [showRenameConfirm, setShowRenameConfirm] = useState(false);
+  const [pendingRename, setPendingRename] = useState(null);
+
   // 文件选择弹窗状态（与 BackgroundUpload 一致的目录浏览）
   const [fileCurrentPath, setFileCurrentPath] = useState('');
   const [fileList, setFileList] = useState([]);
@@ -52,16 +59,33 @@ export default function LayoutCanvas() {
   const itemsRef = useRef({});
   const fileInputRef = useRef(null);
 
+  // 使用 ref 保存最新的 favorites 和 layoutItems，避免闭包问题
+  const favoritesRef = useRef(favorites);
+  const layoutItemsRef = useRef(layoutItems);
+
+  // 同步 ref
+  useEffect(() => {
+    favoritesRef.current = favorites;
+  }, [favorites]);
+
+  useEffect(() => {
+    layoutItemsRef.current = layoutItems;
+  }, [layoutItems]);
+
   // 加载常用证件列表和布局
   useEffect(() => {
     const loadData = async () => {
       const layoutResult = await layoutApi.getLayout();
       if (layoutResult.success && layoutResult.data?.items) {
-        setLayoutItems(layoutResult.data.items);
+        // 确保 items 是数组
+        const items = Array.isArray(layoutResult.data.items) ? layoutResult.data.items : [];
+        setLayoutItems(items);
       }
       const favResult = await documentsApi.getFavorites();
       if (favResult.success) {
-        setFavorites(favResult.data || []);
+        // 确保 data 是数组
+        const favData = Array.isArray(favResult.data) ? favResult.data : [];
+        setFavorites(favData);
       }
     };
     loadData();
@@ -106,6 +130,11 @@ export default function LayoutCanvas() {
 
   // 根据布局配置将证件分组显示（与首页一致）
   const documentsByRow = useMemo(() => {
+    // 防御性检查：确保 favorites 和 layoutItems 是数组
+    if (!Array.isArray(favorites) || !Array.isArray(layoutItems)) {
+      console.error('documentsByRow: favorites 或 layoutItems 异常', { favorites, layoutItems });
+      return [];
+    }
     const rowMap = {};
     favorites.forEach((doc) => {
       const layoutItem = layoutItems.find((item) => item.fileId === doc.id);
@@ -356,11 +385,117 @@ export default function LayoutCanvas() {
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  // ========== 重命名功能 ==========
+
+  // 重命名保存处理
+  const handleRenameSave = useCallback((docId, newName) => {
+    // 防御性检查：确保 docId 有效
+    if (!docId) {
+      console.error('handleRenameSave: docId 无效', docId);
+      setEditingDocId(null);
+      setEditingName('');
+      return;
+    }
+
+    const trimmedName = newName.trim();
+
+    // 空名称不允许，直接退出编辑
+    if (trimmedName === '') {
+      setEditingDocId(null);
+      setEditingName('');
+      return;
+    }
+
+    // 使用 ref 获取最新的 favorites，避免闭包问题
+    const currentFavorites = favoritesRef.current;
+
+    // 防御性检查：确保 currentFavorites 是数组
+    if (!Array.isArray(currentFavorites)) {
+      console.error('handleRenameSave: favorites 状态异常', currentFavorites);
+      setEditingDocId(null);
+      setEditingName('');
+      return;
+    }
+
+    // 检查重名（排除自身）
+    const isDuplicate = currentFavorites.some(f => f && f.id === docId && getNameWithoutExtension(f.name) === trimmedName);
+
+    if (isDuplicate) {
+      // 有重名，显示确认弹窗
+      // 先清空编辑状态，避免 blur 再次触发
+      setEditingDocId(null);
+      setEditingName('');
+      setPendingRename({ docId, newName: trimmedName });
+      setShowRenameConfirm(true);
+    } else {
+      // 无重名，直接应用
+      applyRenameToState(docId, trimmedName);
+    }
+  }, []);
+
+  // 实际执行重命名到 state 的函数
+  const applyRenameToState = useCallback((docId, newName) => {
+    // 使用 ref 获取当前值，直接更新
+    const currentFavorites = favoritesRef.current;
+    const currentLayoutItems = layoutItemsRef.current;
+
+    if (!Array.isArray(currentFavorites) || !Array.isArray(currentLayoutItems)) {
+      console.error('applyRenameToState: favorites 或 layoutItems 异常', { currentFavorites, currentLayoutItems });
+      return;
+    }
+
+    // 创建新的 favorites 数组
+    const newFavorites = currentFavorites.map(fav => {
+      if (fav.id === docId) {
+        const ext = fav.name.split('.').pop();
+        return { ...fav, name: `${newName}.${ext}` };
+      }
+      return fav;
+    });
+
+    // 创建新的 layoutItems 数组
+    const newLayoutItems = currentLayoutItems.map(item => {
+      if (item.fileId === docId) {
+        const ext = item.fileName.split('.').pop();
+        return { ...item, fileName: `${newName}.${ext}` };
+      }
+      return item;
+    });
+
+    // 直接设置新值，而不是使用函数式更新
+    setFavorites(newFavorites);
+    setLayoutItems(newLayoutItems);
+
+    // 清空编辑状态
+    setEditingDocId(null);
+    setEditingName('');
+  }, []);
+
+  // 确认弹窗确认重命名
+  const handleConfirmRename = () => {
+    if (pendingRename) {
+      applyRenameToState(pendingRename.docId, pendingRename.newName);
+    }
+    setShowRenameConfirm(false);
+    setPendingRename(null);
+  };
+
+  // 确认弹窗取消
+  const handleCancelRename = () => {
+    setShowRenameConfirm(false);
+    setPendingRename(null);
+    setEditingDocId(null);
+    setEditingName('');
+  };
+
   // ========== 删除功能 ==========
 
   const handleDelete = (id) => {
-    setFavorites(favorites.filter(f => f.id !== id));
-    setLayoutItems(layoutItems.filter(item => item.fileId !== id));
+    // 防御性检查：确保 favorites 和 layoutItems 是数组
+    const safeFavorites = Array.isArray(favorites) ? favorites : [];
+    const safeLayoutItems = Array.isArray(layoutItems) ? layoutItems : [];
+    setFavorites(safeFavorites.filter(f => f.id !== id));
+    setLayoutItems(safeLayoutItems.filter(item => item.fileId !== id));
   };
 
   // ========== 添加功能 ==========
@@ -381,8 +516,12 @@ export default function LayoutCanvas() {
   const handleConfirmAdd = () => {
     if (selectedToAdd.length === 0) return;
 
-    const newFavorites = [...favorites];
-    const newLayoutItems = [...layoutItems];
+    // 防御性检查：确保 favorites 和 layoutItems 是数组
+    const safeFavorites = Array.isArray(favorites) ? favorites : [];
+    const safeLayoutItems = Array.isArray(layoutItems) ? layoutItems : [];
+
+    const newFavorites = [...safeFavorites];
+    const newLayoutItems = [...safeLayoutItems];
     let nextRow = maxRow + 1;
 
     const filesToAdd = [];
@@ -463,6 +602,22 @@ export default function LayoutCanvas() {
   // ========== 保存与取消 ==========
 
   const handleSave = async () => {
+    // 防止在有项目正在编辑时保存（避免冲突）
+    if (editingDocId !== null) {
+      return;
+    }
+
+    // 使用 Zustand getState() 获取最新值（同步获取，不依赖组件渲染）
+    const currentFavorites = useAppStore.getState().favorites;
+    const currentLayoutItems = useAppStore.getState().layoutItems;
+
+    // 防御性检查
+    if (!Array.isArray(currentFavorites) || !Array.isArray(currentLayoutItems)) {
+      console.error('保存失败: favorites 或 layoutItems 状态异常', { currentFavorites, currentLayoutItems });
+      setSaveMessage('保存失败：数据异常');
+      return;
+    }
+
     setIsSaving(true);
     setSaveMessage('');
 
@@ -472,8 +627,8 @@ export default function LayoutCanvas() {
       let newRow = 0;
       const rowMap = {};
 
-      favorites.forEach(fav => {
-        const item = layoutItems.find(i => i.fileId === fav.id);
+      currentFavorites.forEach(fav => {
+        const item = currentLayoutItems.find(i => i.fileId === fav.id);
         const row = item?.row ?? 0;
         if (rowMap[row] === undefined) {
           rowMap[row] = newRow++;
@@ -489,6 +644,14 @@ export default function LayoutCanvas() {
         });
       });
 
+      // 先更新 favorites 中的名称（确保重命名后名称被保存）
+      const renameUpdates = newLayoutItems.map(item => ({
+        fileId: item.fileId,
+        fileName: item.fileName,
+      }));
+      await documentsApi.updateFavorites(renameUpdates);
+
+      // 然后保存布局
       const result = await layoutApi.saveLayout(newLayoutItems);
       if (result.success) {
         setLayoutItems(newLayoutItems);
@@ -650,6 +813,19 @@ export default function LayoutCanvas() {
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
+          <div className={styles.renameToggle}>
+            <span className={styles.renameLabel}>重命名</span>
+            <button
+              className={`${styles.switch} ${isRenameMode ? styles.switchOn : ''}`}
+              onClick={() => {
+                setIsRenameMode(!isRenameMode);
+                setEditingDocId(null);
+                setEditingName('');
+              }}
+            >
+              <span className={styles.switchThumb} />
+            </button>
+          </div>
         </div>
 
         {/* 证件列表 - 与首页显示完全一致 */}
@@ -682,8 +858,17 @@ export default function LayoutCanvas() {
                           ref={(el) => { itemsRef.current[doc.id] = el; }}
                           data-doc-id={doc.id}
                           data-index={index}
-                          className={`${styles.docItem} ${isDraggingThis ? styles.dragging : ''} ${isRetreat ? styles.retreat : ''}`}
-                          onMouseDown={(e) => !isDraggingThis && handleMouseDown(e, doc, row, index)}
+                          className={`${styles.docItem} ${isDraggingThis ? styles.dragging : ''} ${isRetreat ? styles.retreat : ''} ${isRenameMode ? styles.renameMode : ''}`}
+                          onMouseDown={(e) => {
+                            if (isRenameMode) return;
+                            if (!isDraggingThis) handleMouseDown(e, doc, row, index);
+                          }}
+                          onClick={() => {
+                            if (isRenameMode && editingDocId !== doc.id) {
+                              setEditingDocId(doc.id);
+                              setEditingName(getNameWithoutExtension(doc.name));
+                            }
+                          }}
                         >
                           {/* 拖拽手柄 */}
                           <div className={styles.dragHandle}>
@@ -697,6 +882,27 @@ export default function LayoutCanvas() {
                             </svg>
                           </div>
                           <span className={styles.docName}>{getNameWithoutExtension(doc.name)}</span>
+                          {isRenameMode && editingDocId === doc.id && (
+                            <input
+                              className={styles.docNameInput}
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.stopPropagation();
+                                  handleRenameSave(doc.id, editingName);
+                                } else if (e.key === 'Escape') {
+                                  e.stopPropagation();
+                                  setEditingDocId(null);
+                                  setEditingName('');
+                                }
+                              }}
+                              onBlur={() => handleRenameSave(doc.id, editingName)}
+                              onClick={(e) => e.stopPropagation()}
+                              autoFocus
+                            />
+                          )}
                         </div>
                       </div>
                     );
@@ -871,6 +1077,28 @@ export default function LayoutCanvas() {
                 disabled={selectedToAdd.length === 0}
               >
                 添加 ({selectedToAdd.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 重命名确认弹窗 */}
+      {showRenameConfirm && (
+        <div className={styles.confirmDialogOverlay} onClick={handleCancelRename}>
+          <div className={styles.confirmDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.confirmDialogHeader}>
+              <h3>确认重命名</h3>
+            </div>
+            <div className={styles.confirmDialogContent}>
+              <p>存在同名证件，是否继续保存？</p>
+            </div>
+            <div className={styles.confirmDialogActions}>
+              <button className="btn btn-secondary" onClick={handleCancelRename}>
+                取消
+              </button>
+              <button className="btn btn-primary" onClick={handleConfirmRename}>
+                保存
               </button>
             </div>
           </div>

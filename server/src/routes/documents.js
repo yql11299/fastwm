@@ -321,6 +321,63 @@ router.post('/favorites', authMiddleware, async (req, res) => {
 });
 
 /**
+ * PUT /api/documents/favorites
+ * 更新常用证件信息（如重命名）
+ * 请求体: { updates: [{ fileId, fileName }] }
+ */
+router.put('/favorites', authMiddleware, async (req, res) => {
+  try {
+    const { updates } = req.body;
+    const userId = req.user.id;
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      throw new ApiError(400, 'VALIDATION_ERROR', 'updates 必须是非空数组');
+    }
+
+    const favorites = await getFavorites(userId);
+
+    // 更新匹配的证件名称
+    const updateMap = new Map(updates.map(u => [u.fileId, u.fileName]));
+    let updatedCount = 0;
+
+    for (const fav of favorites) {
+      if (updateMap.has(fav.fileId)) {
+        fav.fileName = updateMap.get(fav.fileId);
+        updatedCount++;
+      }
+    }
+
+    await saveFavorites(userId, favorites);
+
+    res.json(
+      successResponse({
+        updated: updatedCount,
+      })
+    );
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        data: null,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+    console.error('Update favorites error:', error);
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: '服务器内部错误',
+      },
+    });
+  }
+});
+
+/**
  * DELETE /api/documents/favorites
  * 从常用列表移除证件
  */

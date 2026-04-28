@@ -332,6 +332,15 @@ export const documentsApi = {
     }
     return apiClient.post('/documents/favorites', { fileIds, files });
   },
+
+  // 更新常用证件信息（如重命名）
+  async updateFavorites(updates) {
+    if (MOCK_MODE) {
+      await delay(200);
+      return { success: true, data: { updated: updates.length } };
+    }
+    return apiClient.put('/documents/favorites', { updates });
+  },
 };
 
 // 背景文件相关
