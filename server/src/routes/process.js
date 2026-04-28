@@ -377,7 +377,8 @@ router.get('/download/:taskId', authMiddleware, async (req, res) => {
 
       const fileName = result.outputPath.split('/').pop();
       res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
-      res.download(filePath, fileName, (err) => {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.sendFile(filePath, (err) => {
         if (err) {
           console.error('[下载逻辑] 下载失败:', err);
         } else {

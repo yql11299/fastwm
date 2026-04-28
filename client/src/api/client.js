@@ -588,8 +588,19 @@ export const processApi = {
 
     // 从 Content-Disposition 获取文件名
     const contentDisposition = response.headers.get('content-disposition') || '';
-    const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-    let fileName = fileNameMatch ? fileNameMatch[1].replace(/['"]/g, '') : `watermarked_${taskId}.${format === 'file' ? 'pdf' : 'zip'}`;
+    let fileName = `watermarked_${taskId}.${format === 'file' ? 'pdf' : 'zip'}`;
+
+    // 尝试解析 RFC 5987 格式 (filename*=UTF-8''encoded)
+    const rfc5987Match = contentDisposition.match(/filename\*=(?:UTF-8''|)([^;\n]+)/i);
+    if (rfc5987Match) {
+      fileName = decodeURIComponent(rfc5987Match[1]);
+    } else {
+      // 回退到标准 filename 格式
+      const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (fileNameMatch) {
+        fileName = fileNameMatch[1].replace(/['"]/g, '');
+      }
+    }
 
     // 获取 blob 数据
     const blob = await response.blob();
