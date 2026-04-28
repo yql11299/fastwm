@@ -135,7 +135,6 @@ function validateFile(filePath, fileInfo) {
 async function processFile(filePath, watermark, exportConfig, fontPath) {
   const fileType = getFileType(filePath);
   const fileName = path.basename(filePath);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
   try {
     // 根据文件类型处理
@@ -150,6 +149,11 @@ async function processFile(filePath, watermark, exportConfig, fontPath) {
 
     // 生成输出文件名
     const baseName = path.basename(filePath, path.extname(filePath));
+    // 格式化时间戳：YYYYMMDDHHmmss（北京时间）
+    const pad = (n) => n.toString().padStart(2, '0');
+    const now = new Date();
+    const beijingTime = new Date(now.getTime() + (now.getTimezoneOffset() + 8 * 60) * 60 * 1000);
+    const timestamp = `${beijingTime.getFullYear()}${pad(beijingTime.getMonth() + 1)}${pad(beijingTime.getDate())}${pad(beijingTime.getHours())}${pad(beijingTime.getMinutes())}${pad(beijingTime.getSeconds())}`;
     let outputName;
 
     switch (exportConfig.namingRule) {
@@ -160,11 +164,12 @@ async function processFile(filePath, watermark, exportConfig, fontPath) {
         outputName = `${baseName}_${timestamp}.pdf`;
         break;
       case 'text':
-        outputName = `${baseName}_${watermark.text || 'watermark'}.pdf`;
+        // 文本中的特殊字符替换为下划线
+        outputName = `${baseName}_${(watermark.text || 'watermark').replace(/[\\/:*?"<>|]/g, '_')}.pdf`;
         break;
       case 'timestamp_text':
       default:
-        outputName = `${baseName}_${timestamp}_${watermark.text || 'watermark'}.pdf`;
+        outputName = `${baseName}_${timestamp}_${(watermark.text || 'watermark').replace(/[\\/:*?"<>|]/g, '_')}.pdf`;
         break;
     }
 
