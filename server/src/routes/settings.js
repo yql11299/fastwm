@@ -117,8 +117,8 @@ router.put('/', authMiddleware, async (req, res) => {
 
     // 更新导出设置
     if (exportSettings && typeof exportSettings === 'object') {
-      if (typeof exportSettings.namingRule === 'string') {
-        const validNamingRules = ['timestamp_text', 'text_timestamp', 'text_only', 'timestamp_only'];
+      if (exportSettings.namingRule === 'string') {
+        const validNamingRules = ['original', 'timestamp', 'text', 'timestamp_text'];
         if (!validNamingRules.includes(exportSettings.namingRule)) {
           throw new ApiError(400, 'VALIDATION_ERROR', '无效的命名规则');
         }

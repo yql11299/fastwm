@@ -164,12 +164,11 @@ async function processFile(filePath, watermark, exportConfig, fontPath) {
         outputName = `${baseName}_${timestamp}.pdf`;
         break;
       case 'text':
-        // 文本中的特殊字符替换为下划线
-        outputName = `${baseName}_${(watermark.text || 'watermark').replace(/[\\/:*?"<>|]/g, '_')}.pdf`;
+        outputName = `${baseName}_${watermark.text || 'watermark'}.pdf`;
         break;
       case 'timestamp_text':
       default:
-        outputName = `${baseName}_${timestamp}_${(watermark.text || 'watermark').replace(/[\\/:*?"<>|]/g, '_')}.pdf`;
+        outputName = `${baseName}_${timestamp}_${watermark.text || 'watermark'}.pdf`;
         break;
     }
 
