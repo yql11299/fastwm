@@ -64,6 +64,42 @@ function updateTaskProgress(taskId, result) {
 }
 
 /**
+ * 清理过期的导出目录（只保留当天数据）
+ * @returns {Promise<number>} 清理的目录数量
+ */
+async function cleanupOldExports() {
+  const exportsDir = config.dirs.exports;
+  const now = new Date();
+  // 获取今天开始时间（北京时间）
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime() - (now.getTimezoneOffset() + 8 * 60) * 60 * 1000;
+
+  let cleaned = 0;
+  try {
+    const entries = await fs.readdir(exportsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dirPath = path.join(exportsDir, entry.name);
+      try {
+        const stats = await fs.stat(dirPath);
+        // 删除不是今天的目录
+        const dirTime = stats.mtime.getTime();
+        if (dirTime < todayStartMs) {
+          await fs.rm(dirPath, { recursive: true, force: true });
+          cleaned++;
+          console.log(`[cleanup] 已清理过期导出目录: ${entry.name}`);
+        }
+      } catch {
+        // 忽略错误
+      }
+    }
+  } catch {
+    // 目录不存在
+  }
+  return cleaned;
+}
+
+/**
  * 清理过期任务
  * @param {number} maxAge - 最大保留时间（毫秒）
  */
@@ -200,6 +236,9 @@ async function processBatch(filePaths, watermark, exportConfig) {
   if (filePaths.length > config.limits.maxFilesPerBatch) {
     throw new ApiError(400, 'TOO_MANY_FILES', `文件数量超过限制: ${filePaths.length}/${config.limits.maxFilesPerBatch}`);
   }
+
+  // 清理旧的导出文件（只保留当天的）
+  await cleanupOldExports();
 
   // 生成任务ID
   const taskId = generateTaskId();
@@ -361,6 +400,7 @@ export default {
   createTask,
   updateTaskProgress,
   cleanupExpiredTasks,
+  cleanupOldExports,
   packageResultsAsZip,
   getFileType,
   validateFile,
