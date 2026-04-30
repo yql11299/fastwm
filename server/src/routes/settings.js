@@ -40,6 +40,7 @@ router.get('/', authMiddleware, async (req, res) => {
         export: {
           namingRule: 'timestamp_text',
           quality: 100,
+          format: 'pdf',
         },
         defaultWatermark: {
           text: '',
@@ -101,6 +102,7 @@ router.put('/', authMiddleware, async (req, res) => {
         export: {
           namingRule: 'timestamp_text',
           quality: 100,
+          format: 'pdf',
         },
         defaultWatermark: {
           text: '',
@@ -134,6 +136,16 @@ router.put('/', authMiddleware, async (req, res) => {
         settingsData.export = {
           ...settingsData.export,
           quality: exportSettings.quality,
+        };
+      }
+      if (typeof exportSettings.format === 'string') {
+        const validFormats = ['pdf', 'png', 'original'];
+        if (!validFormats.includes(exportSettings.format)) {
+          throw new ApiError(400, 'VALIDATION_ERROR', '无效的导出格式');
+        }
+        settingsData.export = {
+          ...settingsData.export,
+          format: exportSettings.format,
         };
       }
     }

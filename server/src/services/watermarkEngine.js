@@ -183,9 +183,11 @@ async function processFile(filePath, watermark, exportConfig, fontPath) {
       // 输出为 PNG 格式
       outputExt = '.png';
       if (fileType === 'pdf') {
-        outputBuffer = await pdfRenderer.addWatermarkToPdf(filePath, watermark, fontPath);
+        // PDF 转 PNG：使用 pdfjs-dist 渲染 PDF 到 canvas 再叠加水印
+        outputBuffer = await pdfRenderer.addWatermarkToPdfPNG(filePath, watermark, fontPath);
       } else {
-        outputBuffer = await pdfRenderer.addWatermarkToImage(filePath, watermark, fontPath);
+        // 图片直接导出为 PNG
+        outputBuffer = await pdfRenderer.addWatermarkToImagePNG(filePath, watermark, fontPath);
       }
     } else if (outputFormat === 'original') {
       // 保持原文件格式

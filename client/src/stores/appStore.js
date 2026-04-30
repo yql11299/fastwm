@@ -102,7 +102,7 @@ const useAppStore = create((set, get) => ({
 
   // ============ 设置状态 ============
   settings: {
-    export: { namingRule: 'timestamp_text', quality: 100 },
+    export: { namingRule: 'timestamp_text', quality: 100, format: 'pdf' },
     defaultWatermark: { text: '水印', x: 0.5, y: 0.5, scale: 0.5, rotation: 0, opacity: 1.0, font: '微软雅黑', color: '#000000' },
   },
   setSettings: (settings) => set({ settings }),

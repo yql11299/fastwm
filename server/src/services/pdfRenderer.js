@@ -16,10 +16,14 @@
  */
 
 import { PDFDocument } from 'pdf-lib';
+import * as pdfjs from 'pdfjs-dist';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config/index.js';
 import { renderWatermarkToCanvas as renderWatermark } from './watermarkRenderer.js';
+
+// 设置 pdfjs-dist 的 workerSrc（使用 CDN 或本地路径）
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 /**
  * 从文件路径检测图片类型
@@ -118,6 +122,90 @@ async function addWatermarkToImage(imagePath, watermark) {
   });
 
   return Buffer.from(await pdfDoc.save());
+}
+
+/**
+ * 为图片添加水印并导出为 PNG
+ * @param {string} imagePath - 图片文件路径
+ * @param {Object} watermark - 水印参数
+ * @param {string} fontPath - 字体文件路径（传递给 renderWatermarkToCanvas）
+ * @returns {Promise<Buffer>} PNG 文件 buffer
+ */
+async function addWatermarkToImagePNG(imagePath, watermark, fontPath) {
+  // 使用 canvas 加载图片
+  const { createCanvas, loadImage } = await import('canvas');
+  const imageBuffer = await fs.readFile(imagePath);
+
+  // 加载图片获取尺寸
+  const img = await loadImage(imageBuffer);
+  const width = img.width;
+  const height = img.height;
+
+  // 创建输出 canvas
+  const outputCanvas = createCanvas(width, height);
+  const ctx = outputCanvas.getContext('2d');
+
+  // 绘制原图
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // 渲染水印到 Canvas（需要传入字体目录）
+  const fontDir = path.dirname(fontPath);
+  const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height, fontDir);
+
+  // 将水印绘制到原图上
+  ctx.drawImage(watermarkCanvas, 0, 0, width, height);
+
+  // 返回 PNG buffer
+  return Buffer.from(outputCanvas.toBuffer('image/png'));
+}
+
+/**
+ * 为 PDF 添加水印并导出为 PNG
+ * 使用 pdfjs-dist 将 PDF 页面渲染到 canvas，然后叠加水印
+ * @param {string} pdfPath - PDF 文件路径
+ * @param {Object} watermark - 水印参数
+ * @param {string} fontPath - 字体文件路径
+ * @returns {Promise<Buffer>} PNG 文件 buffer (只处理第一页)
+ */
+async function addWatermarkToPdfPNG(pdfPath, watermark, fontPath) {
+  // 读取 PDF 文件
+  const pdfBuffer = await fs.readFile(pdfPath);
+
+  // 使用 pdfjs-dist 加载 PDF
+  const loadingTask = pdfjs.createLoadingTask(pdfBuffer, {
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
+  const pdf = await loadingTask.promise;
+
+  // 获取第一页
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 1 });
+
+  const width = viewport.width;
+  const height = viewport.height;
+
+  // 创建输出 canvas
+  const { createCanvas } = await import('canvas');
+  const outputCanvas = createCanvas(width, height);
+  const ctx = outputCanvas.getContext('2d');
+
+  // 使用 pdfjs-dist 渲染 PDF 到 canvas
+  await page.render({
+    canvasContext: ctx,
+    viewport,
+  }).promise;
+
+  // 渲染水印到 Canvas
+  const fontDir = path.dirname(fontPath);
+  const { canvas: watermarkCanvas } = await renderWatermark(watermark, width, height, fontDir);
+
+  // 将水印绘制到 PDF 页面上
+  ctx.drawImage(watermarkCanvas, 0, 0, width, height);
+
+  // 返回 PNG buffer
+  return Buffer.from(outputCanvas.toBuffer('image/png'));
 }
 
 /**

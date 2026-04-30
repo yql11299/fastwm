@@ -15,8 +15,14 @@ export default function SettingsModal({ onClose }) {
       const result = await settingsApi.getSettings();
       if (result.success && result.data) {
         const loadedSettings = {
-          export: result.data.export || settings.export,
-          defaultWatermark: result.data.defaultWatermark || settings.defaultWatermark,
+          export: {
+            ...settings.export,
+            ...result.data.export,
+          },
+          defaultWatermark: {
+            ...settings.defaultWatermark,
+            ...result.data.defaultWatermark,
+          },
         };
         setLocalSettings(loadedSettings);
         setSettings(loadedSettings);
