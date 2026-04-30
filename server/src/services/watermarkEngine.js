@@ -198,7 +198,8 @@ async function processFile(filePath, watermark, exportConfig, fontPath) {
         // 原图输出（PNG/JPG）保持原扩展名
         const origExt = path.extname(filePath).toLowerCase();
         outputExt = origExt === '.png' ? '.png' : '.jpg';
-        outputBuffer = await pdfRenderer.addWatermarkToImage(filePath, watermark, fontPath);
+        // 使用保持原格式的函数
+        outputBuffer = await pdfRenderer.addWatermarkToImageAsOriginal(filePath, watermark, fontPath);
       }
     } else {
       // 默认 PDF 格式

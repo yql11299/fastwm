@@ -134,6 +134,46 @@ async function addWatermarkToImage(imagePath, watermark) {
 }
 
 /**
+ * 为图片添加水印，保持原图片格式（JPG/PNG）
+ * @param {string} imagePath - 图片文件路径
+ * @param {Object} watermark - 水印参数
+ * @param {string} fontPath - 字体文件路径
+ * @returns {Promise<Buffer>} 图片 buffer (jpg 或 png)
+ */
+async function addWatermarkToImageAsOriginal(imagePath, watermark, fontPath) {
+  const { createCanvas, loadImage } = await import('canvas');
+
+  // 读取图片文件
+  const imageBuffer = await fs.readFile(imagePath);
+
+  // 加载图片
+  const img = await loadImage(imageBuffer);
+  const width = img.width;
+  const height = img.height;
+
+  // 创建输出 canvas
+  const outputCanvas = createCanvas(width, height);
+  const ctx = outputCanvas.getContext('2d');
+
+  // 绘制原图
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // 渲染水印到 Canvas
+  const fontDir = path.dirname(fontPath);
+  const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height, fontDir);
+
+  // 将水印绘制到原图上
+  ctx.drawImage(watermarkCanvas, 0, 0, width, height);
+
+  // 根据原文件格式决定输出格式
+  const ext = path.extname(imagePath).toLowerCase();
+  const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+
+  // 返回图片 buffer
+  return Buffer.from(outputCanvas.toBuffer(mimeType));
+}
+
+/**
  * 为图片添加水印并导出为 PNG
  * @param {string} imagePath - 图片文件路径
  * @param {Object} watermark - 水印参数
@@ -180,13 +220,13 @@ async function addWatermarkToPdfPNG(pdfPath, watermark, fontPath) {
   // 读取 PDF 文件
   const pdfBuffer = await fs.readFile(pdfPath);
 
-  // 使用 pdfjs-dist 加载 PDF
-  const loadingTask = pdfjs.createLoadingTask(pdfBuffer, {
+  // 使用 pdfjs-dist v5 API 加载 PDF
+  const pdf = await pdfjs.getDocument({
+    data: new Uint8Array(pdfBuffer),
     useWorkerFetch: false,
     isEvalSupported: false,
     useSystemFonts: true,
-  });
-  const pdf = await loadingTask.promise;
+  }).promise;
 
   // 获取第一页
   const page = await pdf.getPage(1);
@@ -364,7 +404,10 @@ async function createWatermarkedPdf(watermark, width = 595, height = 842) {
 
 export default {
   addWatermarkToImage,
+  addWatermarkToImagePNG,
+  addWatermarkToImageAsOriginal,
   addWatermarkToPdf,
+  addWatermarkToPdfPNG,
   batchProcessFiles,
   createWatermarkedPdf,
   hexToRgb,
