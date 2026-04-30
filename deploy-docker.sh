@@ -67,10 +67,31 @@ fi
 printf '\n'
 
 # ===========================================
+# 配置 Docker 镜像加速器
+# ===========================================
+
+printf '%b配置 Docker 镜像加速器...%b\n' "$CYAN" "$NC"
+
+MIRROR_REGISTRY="docker.xuanyuan.me"
+
+# 检查当前配置的镜像源
+CURRENT_MIRROR=$(docker info 2>/dev/null | grep -A 1 "Registry Mirrors" | grep -v "Registry Mirrors" | tr -d ' ' || echo "")
+
+if [[ "$CURRENT_MIRROR" == *"$MIRROR_REGISTRY"* ]]; then
+    printf '  ✓ 镜像加速器已配置: %s\n' "$MIRROR_REGISTRY"
+else
+    printf '  正在配置镜像加速器: %s\n' "$MIRROR_REGISTRY"
+    echo "{\"registry-mirrors\": [\"https://$MIRROR_REGISTRY\"]}" | sudo tee /etc/docker/daemon.json > /dev/null
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    printf '  ✓ 镜像加速器配置完成\n'
+fi
+
+# ===========================================
 # 端口配置
 # ===========================================
 
-printf '%b端口配置（直接回车使用默认值）:%b\n' "$CYAN" "$NC"
+printf '\n%b端口配置（直接回车使用默认值）:%b\n' "$CYAN" "$NC"
 printf '\n'
 
 printf '后端 API 端口 [%b3000%b]: ' "$YELLOW" "$NC"
@@ -88,16 +109,25 @@ else
 fi
 
 printf '\n'
-printf '%b[1/4] 端口配置:%b\n' "$GREEN" "$NC"
+printf '%b[1/5] 端口配置:%b\n' "$GREEN" "$NC"
 printf '  - 后端 API: %s:%s\n' "$SERVER_IP" "$SERVER_PORT"
 printf '  - 前端 Web:  http://%s:%s\n' "$SERVER_IP" "$CLIENT_PORT"
 printf '\n'
 
 # ===========================================
-# 清理旧构建产物
+# 预拉取基础镜像
 # ===========================================
 
-printf '%b[2/4] 清理旧容器和镜像...%b\n' "$GREEN" "$NC"
+printf '%b[2/5] 预拉取基础镜像...%b\n' "$GREEN" "$NC"
+
+# 预拉取可能超时失败的基础镜像
+printf '  尝试拉取 node:18-alpine ...\n'
+docker pull node:18-alpine || printf '  ⚠ node:18-alpine 拉取失败，继续...\n'
+
+printf '  尝试拉取 nginx:alpine ...\n'
+docker pull nginx:alpine || printf '  ⚠ nginx:alpine 拉取失败，继续...\n'
+
+printf '\n%b[3/5] 清理旧容器和镜像...%b\n' "$GREEN" "$NC"
 
 # 停止并删除旧容器
 $COMPOSE_CMD down 2>/dev/null || true
@@ -114,13 +144,21 @@ printf '  清理完成\n'
 # 创建必要目录
 # ===========================================
 
-printf '%b[3/4] 创建必要目录...%b\n' "$GREEN" "$NC"
-mkdir -p "$PROJECT_ROOT/data/users"
-mkdir -p "$PROJECT_ROOT/data/documents"
-mkdir -p "$PROJECT_ROOT/data/exports"
-mkdir -p "$PROJECT_ROOT/data/backgrounds"
-mkdir -p "$PROJECT_ROOT/data/fonts"
-mkdir -p "$PROJECT_ROOT/fonts"
+printf '%b[4/5] 创建必要目录...%b\n' "$GREEN" "$NC"
+
+# 从 .env 加载目录配置
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    source "$PROJECT_ROOT/.env"
+fi
+
+# 使用 .env 中的路径，如果没有则使用默认值
+mkdir -p "${USERS_HOST_PATH:-$PROJECT_ROOT/data/users}"
+mkdir -p "${DOCUMENTS_HOST_PATH:-$PROJECT_ROOT/data/documents}"
+mkdir -p "${EXPORTS_HOST_PATH:-$PROJECT_ROOT/data/exports}"
+mkdir -p "${BACKGROUNDS_HOST_PATH:-$PROJECT_ROOT/data/backgrounds}"
+mkdir -p "${FONTS_HOST_PATH:-$PROJECT_ROOT/fonts}"
+
+# 创建 .gitkeep 确保目录存在
 touch "$PROJECT_ROOT/data/users/.gitkeep" 2>/dev/null || true
 touch "$PROJECT_ROOT/data/documents/.gitkeep" 2>/dev/null || true
 touch "$PROJECT_ROOT/data/exports/.gitkeep" 2>/dev/null || true
@@ -131,9 +169,12 @@ printf '  目录创建完成\n'
 # 构建并启动
 # ===========================================
 
-printf '%b[4/4] 构建并启动 Docker 容器...%b\n' "$GREEN" "$NC"
+printf '%b[5/5] 构建并启动 Docker 容器...%b\n' "$GREEN" "$NC"
 
-# 设置环境变量并启动
+# 设置环境变量并启动（加载 .env 文件）
+set -a
+source "$PROJECT_ROOT/.env" 2>/dev/null || true
+set +a
 env SERVER_PORT="$SERVER_PORT" CLIENT_PORT="$CLIENT_PORT" JWT_SECRET="${JWT_SECRET:-dev-only-secret-change-in-production}" $COMPOSE_CMD up -d --build
 
 # 等待服务启动

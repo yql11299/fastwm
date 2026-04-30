@@ -2,7 +2,7 @@
 # Client Dockerfile - React 前端 + Nginx
 # ===========================================
 
-FROM node:20-slim AS builder
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -15,8 +15,10 @@ RUN npm ci
 # 复制源代码
 COPY client/src ./src
 COPY client/index.html ./
-COPY client/public ./public
 COPY client/vite.config.js ./
+
+# 确保 VITE_API_URL 为相对路径，不使用任何硬编码地址
+ENV VITE_API_URL=/api
 
 # 构建
 RUN npm run build

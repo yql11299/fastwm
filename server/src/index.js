@@ -8,10 +8,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 
 import { config } from './config/index.js';
-import { ensureDir } from './utils/fileManager.js';
+import { ensureDir, exists } from './utils/fileManager.js';
 import cleanup from './utils/cleanup.js';
 
 const { startPeriodicCleanup } = cleanup;
@@ -120,6 +121,68 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 确保默认用户存在
+async function ensureDefaultUser() {
+  const defaultUserId = 'admin';
+  const userDir = path.join(config.dirs.users, defaultUserId);
+  const settingsPath = path.join(userDir, 'settings.json');
+  const favoritesPath = path.join(userDir, 'favorites.json');
+  const layoutPath = path.join(userDir, 'layout.json');
+
+  // 检查用户配置文件是否存在
+  const userExists = await exists(settingsPath);
+
+  if (!userExists) {
+    console.log(`创建默认用户: ${defaultUserId}`);
+
+    // 确保用户目录存在
+    await ensureDir(userDir);
+    await ensureDir(path.join(userDir, 'schemes'));
+
+    // 默认用户配置
+    const defaultSettings = {
+      id: defaultUserId,
+      username: defaultUserId,
+      createdAt: new Date().toISOString(),
+      export: {
+        namingRule: 'timestamp_text',
+        quality: 100,
+      },
+      defaultWatermark: {
+        text: '水印',
+        x: 0.5,
+        y: 0.5,
+        scale: 0.05,
+        rotation: 0,
+        opacity: 1,
+        font: '黑体',
+        color: '#808080',
+      },
+    };
+
+    // 写入 settings.json
+    await fs.writeFile(settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf-8');
+    console.log(`默认用户 settings.json 已创建`);
+
+    // 创建空的 favorites.json
+    await fs.writeFile(favoritesPath, '[]', 'utf-8');
+    console.log(`默认用户 favorites.json 已创建`);
+
+    // 创建空的 layout.json
+    const defaultLayout = {
+      userId: defaultUserId,
+      updatedAt: new Date().toISOString(),
+      items: [],
+    };
+    await fs.writeFile(layoutPath, JSON.stringify(defaultLayout, null, 2), 'utf-8');
+    console.log(`默认用户 layout.json 已创建`);
+
+    console.log(`默认用户创建完成`);
+  } else {
+    console.log(`默认用户已存在: ${defaultUserId}`);
+  }
+}
+
 // 初始化服务器
 async function initializeServer() {
   try {
@@ -130,6 +193,9 @@ async function initializeServer() {
     await ensureDir(config.dirs.exports);
     await ensureDir(config.dirs.fonts);
     console.log('目录初始化完成');
+
+    // 确保默认用户存在
+    await ensureDefaultUser();
 
     // 启动清理任务（每 24 小时执行一次）
     startPeriodicCleanup(24);

@@ -12,16 +12,24 @@ services:
     restart: unless-stopped
     ports:
       - "${SERVER_PORT:-3000}:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-dev-only-secret-change-in-production}
+      # 容器内的路径（固定）
+      - FONTS_PATH=/app/fonts
+      - USERS_PATH=/app/data/users
+      - DOCUMENTS_PATH=/app/documents
+      - EXPORTS_PATH=/app/data/exports
+      - BACKGROUNDS_PATH=/app/data/backgrounds
     volumes:
-      - ./data/users:/app/data/users
-      - ./data/documents:/app/data/documents
-      - ./data/exports:/app/data/exports
-      - ./data/backgrounds:/app/data/backgrounds
-      - ./fonts:/app/fonts:ro
+      # 宿主机的绝对路径映射到容器内路径
+      - ${FONTS_HOST_PATH}:/app/fonts:ro
+      - ${USERS_HOST_PATH}:/app/data/users
+      - ${DOCUMENTS_HOST_PATH}:/app/documents:ro
+      - ${EXPORTS_HOST_PATH}:/app/data/exports
+      - ${BACKGROUNDS_HOST_PATH}:/app/data/backgrounds
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s

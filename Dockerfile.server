@@ -2,20 +2,20 @@
 # Server Dockerfile - Node.js 后端服务
 # ===========================================
 
-FROM node:20-slim
+FROM node:18-alpine
 
-# 安装构建 canvas 所需的系统依赖
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# 安装构建 canvas 所需的系统依赖 (Alpine)
+RUN apk add --no-cache \
+    build-base \
     python3 \
     make \
     g++ \
-    libcairo2-dev \
-    libpango1.0-dev \
-    libjpeg-dev \
-    libgif-dev \
-    librsvg2-dev \
-    && rm -rf /var/lib/apt/lists/*
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev \
+    librsvg-dev \
+    && rm -rf /var/cache/apk/*
 
 # 设置工作目录
 WORKDIR /app

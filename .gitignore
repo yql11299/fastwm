@@ -89,3 +89,15 @@ cookies.txt
 # 部署相关（不需要提交到仓库）
 pm2.*
 *.pid
+
+# 本地数据目录
+backgrounds/
+exports/
+server/build/
+server/documents/
+watermark-verify/
+
+# 压缩包和镜像
+*.zip
+fastwm-*.zip
+fastwm-*.tar

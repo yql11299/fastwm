@@ -32,6 +32,7 @@ export default function Canvas() {
     setCurrentScheme,
     setWatermarkSize,
     watermarkSize,
+    settings,
   } = useAppStore();
 
   const {
@@ -572,8 +573,8 @@ export default function Canvas() {
         watermark: watermark,
         fileIds: [fileIdToUse],
         exportConfig: {
-          namingRule: 'timestamp_text',
-          quality: 100,
+          namingRule: settings.export?.namingRule || 'timestamp_text',
+          quality: settings.export?.quality || 100,
         },
       });
 

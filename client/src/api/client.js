@@ -8,7 +8,8 @@ import axios from 'axios';
 
 // 创建 axios 实例
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  // 使用相对路径，通过 nginx 代理到后端
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 30000,
   withCredentials: true, // 允许携带 Cookie
 });

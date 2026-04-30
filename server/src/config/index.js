@@ -17,13 +17,13 @@ export const config = {
     root: ROOT_DIR,
     // 后端数据目录（与 src 平级）
     data: path.join(ROOT_DIR, 'server/data'),
-    fonts: process.env.FONTS_PATH || path.join(ROOT_DIR, 'fonts'),
+    fonts: process.env.FONTS_PATH || '/app/fonts',
     // 用户数据目录
-    users: process.env.USERS_PATH || path.join(ROOT_DIR, 'server/data/users'),
+    users: process.env.USERS_PATH || '/app/data/users',
     // 证件文件目录
-    documents: process.env.DOCUMENTS_PATH || path.join(ROOT_DIR, 'server/documents'),
-    exports: process.env.EXPORTS_PATH || path.join(ROOT_DIR, 'exports'),
-    backgrounds: process.env.BACKGROUNDS_PATH || path.join(ROOT_DIR, 'backgrounds'),
+    documents: process.env.DOCUMENTS_PATH || '/app/documents',
+    exports: process.env.EXPORTS_PATH || '/app/data/exports',
+    backgrounds: process.env.BACKGROUNDS_PATH || '/app/data/backgrounds',
   },
 
   // JWT 配置
