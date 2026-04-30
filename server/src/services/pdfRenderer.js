@@ -16,13 +16,22 @@
  */
 
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjs from 'pdfjs-dist';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config/index.js';
 import { renderWatermarkToCanvas as renderWatermark } from './watermarkRenderer.js';
 
-// 设置 pdfjs-dist 的 workerSrc（使用 CDN 或本地路径）
+// pdfjs-dist 需要 DOMMatrix (浏览器 API)，在 Node.js 中需要 polyfill
+// canvas 包提供了 DOMMatrix 实现
+import { createCanvas, DOMMatrix } from 'canvas';
+if (typeof globalThis.DOMMatrix === 'undefined') {
+  globalThis.DOMMatrix = DOMMatrix;
+}
+
+// 动态导入 pdfjs-dist（在 DOMMatrix polyfill 之后）
+const pdfjs = await import('pdfjs-dist');
+
+// 设置 pdfjs-dist 的 workerSrc（使用 CDN）
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 /**
