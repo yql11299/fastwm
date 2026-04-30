@@ -134,13 +134,15 @@ async function addWatermarkToImage(imagePath, watermark) {
 }
 
 /**
- * 为图片添加水印，保持原图片格式（JPG/PNG）
+ * 为图片添加水印，导出为指定格式（PNG/JPG/原格式）
+ * 统一使用 canvas 渲染：原图 + 水印 → canvas → 按需导出格式
  * @param {string} imagePath - 图片文件路径
  * @param {Object} watermark - 水印参数
- * @param {string} fontPath - 字体文件路径
- * @returns {Promise<Buffer>} 图片 buffer (jpg 或 png)
+ * @param {string} fontDir - 字体目录
+ * @param {string} outputMimeType - 输出 MIME 类型 ('image/png', 'image/jpeg')
+ * @returns {Promise<Buffer>} 图片 buffer
  */
-async function addWatermarkToImageAsOriginal(imagePath, watermark, fontPath) {
+async function addWatermarkToImageCanvas(imagePath, watermark, fontDir, outputMimeType) {
   const { createCanvas, loadImage } = await import('canvas');
 
   // 读取图片文件
@@ -159,53 +161,39 @@ async function addWatermarkToImageAsOriginal(imagePath, watermark, fontPath) {
   ctx.drawImage(img, 0, 0, width, height);
 
   // 渲染水印到 Canvas
-  const fontDir = path.dirname(fontPath);
-  const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height, fontDir);
+  const { canvas: watermarkCanvas } = await renderWatermark(watermark, width, height, fontDir);
 
   // 将水印绘制到原图上
   ctx.drawImage(watermarkCanvas, 0, 0, width, height);
 
-  // 根据原文件格式决定输出格式
+  // 返回图片 buffer
+  return Buffer.from(outputCanvas.toBuffer(outputMimeType));
+}
+
+/**
+ * 为图片添加水印，保持原图片格式（JPG/PNG）
+ * @param {string} imagePath - 图片文件路径
+ * @param {Object} watermark - 水印参数
+ * @param {string} fontPath - 字体文件路径
+ * @returns {Promise<Buffer>} 图片 buffer (jpg 或 png)
+ */
+async function addWatermarkToImageAsOriginal(imagePath, watermark, fontPath) {
+  const fontDir = path.dirname(fontPath);
   const ext = path.extname(imagePath).toLowerCase();
   const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
-
-  // 返回图片 buffer
-  return Buffer.from(outputCanvas.toBuffer(mimeType));
+  return addWatermarkToImageCanvas(imagePath, watermark, fontDir, mimeType);
 }
 
 /**
  * 为图片添加水印并导出为 PNG
  * @param {string} imagePath - 图片文件路径
  * @param {Object} watermark - 水印参数
- * @param {string} fontPath - 字体文件路径（传递给 renderWatermarkToCanvas）
+ * @param {string} fontPath - 字体文件路径
  * @returns {Promise<Buffer>} PNG 文件 buffer
  */
 async function addWatermarkToImagePNG(imagePath, watermark, fontPath) {
-  // 使用 canvas 加载图片
-  const { createCanvas, loadImage } = await import('canvas');
-  const imageBuffer = await fs.readFile(imagePath);
-
-  // 加载图片获取尺寸
-  const img = await loadImage(imageBuffer);
-  const width = img.width;
-  const height = img.height;
-
-  // 创建输出 canvas
-  const outputCanvas = createCanvas(width, height);
-  const ctx = outputCanvas.getContext('2d');
-
-  // 绘制原图
-  ctx.drawImage(img, 0, 0, width, height);
-
-  // 渲染水印到 Canvas（需要传入字体目录）
   const fontDir = path.dirname(fontPath);
-  const { canvas: watermarkCanvas } = await renderWatermarkToCanvas(watermark, width, height, fontDir);
-
-  // 将水印绘制到原图上
-  ctx.drawImage(watermarkCanvas, 0, 0, width, height);
-
-  // 返回 PNG buffer
-  return Buffer.from(outputCanvas.toBuffer('image/png'));
+  return addWatermarkToImageCanvas(imagePath, watermark, fontDir, 'image/png');
 }
 
 /**
