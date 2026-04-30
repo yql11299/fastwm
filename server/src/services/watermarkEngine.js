@@ -171,16 +171,41 @@ function validateFile(filePath, fileInfo) {
 async function processFile(filePath, watermark, exportConfig, fontPath) {
   const fileType = getFileType(filePath);
   const fileName = path.basename(filePath);
+  const outputFormat = exportConfig.format || 'pdf';
 
   try {
-    // 根据文件类型处理
+    // 根据文件类型和水印参数处理
     let outputBuffer;
-    let outputExt = '.pdf';
+    let outputExt;
 
-    if (fileType === 'pdf') {
-      outputBuffer = await pdfRenderer.addWatermarkToPdf(filePath, watermark, fontPath);
+    // 确定输出格式
+    if (outputFormat === 'png') {
+      // 输出为 PNG 格式
+      outputExt = '.png';
+      if (fileType === 'pdf') {
+        outputBuffer = await pdfRenderer.addWatermarkToPdf(filePath, watermark, fontPath);
+      } else {
+        outputBuffer = await pdfRenderer.addWatermarkToImage(filePath, watermark, fontPath);
+      }
+    } else if (outputFormat === 'original') {
+      // 保持原文件格式
+      if (fileType === 'pdf') {
+        outputExt = '.pdf';
+        outputBuffer = await pdfRenderer.addWatermarkToPdf(filePath, watermark, fontPath);
+      } else {
+        // 原图输出（PNG/JPG）保持原扩展名
+        const origExt = path.extname(filePath).toLowerCase();
+        outputExt = origExt === '.png' ? '.png' : '.jpg';
+        outputBuffer = await pdfRenderer.addWatermarkToImage(filePath, watermark, fontPath);
+      }
     } else {
-      outputBuffer = await pdfRenderer.addWatermarkToImage(filePath, watermark, fontPath);
+      // 默认 PDF 格式
+      outputExt = '.pdf';
+      if (fileType === 'pdf') {
+        outputBuffer = await pdfRenderer.addWatermarkToPdf(filePath, watermark, fontPath);
+      } else {
+        outputBuffer = await pdfRenderer.addWatermarkToImage(filePath, watermark, fontPath);
+      }
     }
 
     // 生成输出文件名
@@ -192,19 +217,22 @@ async function processFile(filePath, watermark, exportConfig, fontPath) {
     const timestamp = `${beijingTime.getFullYear()}${pad(beijingTime.getMonth() + 1)}${pad(beijingTime.getDate())}${pad(beijingTime.getHours())}${pad(beijingTime.getMinutes())}${pad(beijingTime.getSeconds())}`;
     let outputName;
 
+    // 根据命名规则和输出格式生成文件名
+    const nameWithExt = `${baseName}${outputExt}`;
+
     switch (exportConfig.namingRule) {
       case 'original':
-        outputName = `${baseName}.pdf`;
+        outputName = nameWithExt;
         break;
       case 'timestamp':
-        outputName = `${baseName}_${timestamp}.pdf`;
+        outputName = `${baseName}_${timestamp}${outputExt}`;
         break;
       case 'text':
-        outputName = `${baseName}_${watermark.text || 'watermark'}.pdf`;
+        outputName = `${baseName}_${watermark.text || 'watermark'}${outputExt}`;
         break;
       case 'timestamp_text':
       default:
-        outputName = `${baseName}_${timestamp}_${watermark.text || 'watermark'}.pdf`;
+        outputName = `${baseName}_${timestamp}_${watermark.text || 'watermark'}${outputExt}`;
         break;
     }
 

@@ -19,12 +19,26 @@ const DOCS_ROOT = config.dirs.documents;
 
 /**
  * 解析文件 ID 获取文件路径
- * @param {string} fileId - 文件 ID (可能是 "doc_xxx" 格式或文件路径)
+ * @param {string} fileId - 文件 ID (可能是 "doc_xxx" 格式、"bg_xxx" 背景文件格式或文件路径)
  * @returns {Promise<string>}
  */
 async function resolveFileId(fileId) {
-  // fileId 可能是文件路径或 ID
-  // 先尝试作为路径处理
+  // 处理背景文件 ID (bg_xxx)
+  if (fileId.startsWith('bg_')) {
+    const backgroundsRoot = config.dirs.backgrounds;
+    const filePath = path.join(backgroundsRoot, fileId);
+    // 防止路径遍历攻击
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(path.resolve(backgroundsRoot))) {
+      throw new ApiError(400, 'INVALID_FILE_PATH', '无效的文件路径');
+    }
+    if (await exists(filePath)) {
+      return filePath;
+    }
+    throw new ApiError(404, 'DOC_FILE_NOT_FOUND', `背景文件不存在: ${fileId}`);
+  }
+
+  // 处理证件文件 ID (doc_xxx)
   const filePath = path.join(DOCS_ROOT, fileId);
   // 防止路径遍历攻击：验证解析后的路径在 DOCS_ROOT 内
   const resolvedPath = path.resolve(filePath);
@@ -229,6 +243,7 @@ router.post('/watermark', authMiddleware, async (req, res) => {
     const mergedExportConfig = {
       namingRule: exportConfig?.namingRule || 'timestamp_text',
       quality: exportConfig?.quality || 100,
+      format: exportConfig?.format || 'pdf',
     };
 
     // 启动批量处理

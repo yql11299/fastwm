@@ -92,6 +92,20 @@ export default function SettingsModal({ onClose }) {
             </div>
 
             <div className={styles.field}>
+              <label htmlFor="format">导出格式</label>
+              <select
+                id="format"
+                value={localSettings.export?.format || 'pdf'}
+                onChange={(e) => handleExportChange('format', e.target.value)}
+              >
+                <option value="pdf">PDF 格式</option>
+                <option value="png">PNG 格式</option>
+                <option value="original">原格式 (保持原文件类型)</option>
+              </select>
+              <span className={styles.hint}>选择输出文件格式，PNG 和原格式会保持原始图片类型</span>
+            </div>
+
+            <div className={styles.field}>
               <label htmlFor="quality">导出质量</label>
               <div className={styles.rangeField}>
                 <input

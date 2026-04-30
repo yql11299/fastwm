@@ -31,6 +31,7 @@ export default function DocumentList() {
     schemes,
     setSchemes,
     setCurrentScheme,
+    settings,
   } = useAppStore();
 
   const [watermarkText, setWatermarkText] = useState(watermark.text);
@@ -165,8 +166,9 @@ export default function DocumentList() {
         text: watermarkText.trim(),
         fileIds: selectedDocuments,
         exportConfig: {
-          namingRule: 'timestamp_text',
-          quality: 100,
+          namingRule: settings.export?.namingRule || 'timestamp_text',
+          quality: settings.export?.quality || 100,
+          format: settings.export?.format || 'pdf',
         },
       });
 
