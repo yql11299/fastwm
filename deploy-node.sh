@@ -156,7 +156,8 @@ else
 fi
 
 printf '  构建前端...\n'
-if npm run build 2>&1 | tee /tmp/npm-build-client.log; then
+printf '  后端 API 地址: http://%s:%s/api\n' "$SERVER_IP" "$SERVER_PORT"
+if VITE_API_URL="http://${SERVER_IP}:${SERVER_PORT}/api" npm run build 2>&1 | tee /tmp/npm-build-client.log; then
     printf '  前端构建完成\n'
 else
     printf '%b✗ 前端构建失败%b\n' "$RED" "$NC"

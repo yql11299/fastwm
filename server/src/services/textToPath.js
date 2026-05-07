@@ -5,6 +5,7 @@
 
 import opentype from 'opentype.js';
 import path from 'path';
+import fs from 'fs';
 import { config } from '../config/index.js';
 import { readFile } from '../utils/fileManager.js';
 import { ApiError } from '../utils/response.js';
@@ -76,10 +77,9 @@ function findFontFile(fontName) {
   }
 
   // 尝试直接匹配文件名
-  const fs = require('fs/promises');
   // 同步检查文件是否存在
   try {
-    const files = require('fs').readdirSync(fontsDir);
+    const files = fs.readdirSync(fontsDir);
     const matching = files.find(
       (f) => f.toLowerCase() === `${fontName.toLowerCase()}.ttf` ||
              f.toLowerCase() === `${fontName.toLowerCase()}.otf`

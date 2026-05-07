@@ -124,6 +124,8 @@ if not exist "node_modules" (
     echo   前端依赖安装完成
 )
 
+echo   后端 API 地址: http://%SERVER_IP%:%SERVER_PORT%/api
+set "VITE_API_URL=http://%SERVER_IP%:%SERVER_PORT%/api"
 call npm run build
 if %errorlevel% neq 0 (
     echo [错误] 前端构建失败

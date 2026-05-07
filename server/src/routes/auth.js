@@ -61,7 +61,7 @@ async function initializeUserData(userId) {
       text: '',
       x: 0.5,
       y: 0.5,
-      scale: 0.5,
+      scale: 0.05,
       rotation: 0,
       opacity: 1,
       font: '黑体',

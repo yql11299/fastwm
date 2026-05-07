@@ -102,12 +102,31 @@ echo   清理完成
 
 echo [3/4] 创建必要目录...
 
-if not exist "data\users" mkdir "data\users"
-if not exist "data\documents" mkdir "data\documents"
-if not exist "data\exports" mkdir "data\exports"
-if not exist "data\backgrounds" mkdir "data\backgrounds"
-if not exist "data\fonts" mkdir "data\fonts"
-if not exist "fonts" mkdir "fonts"
+:: 从 .env 文件加载配置（如果存在）
+if exist ".env" (
+    echo   加载 .env 配置...
+    for /f "tokens=1* delims==" %%a in (.env) do (
+        if not "%%a"=="" (
+            if not "%%a:~0,1"=="#" (
+                set "%%a=%%b"
+            )
+        )
+    )
+    echo   .env 配置加载完成
+)
+
+:: 使用 .env 中的路径，如果没有则使用默认值
+if not defined USERS_HOST_PATH set "USERS_HOST_PATH=%~dp0data\users"
+if not defined DOCUMENTS_HOST_PATH set "DOCUMENTS_HOST_PATH=%~dp0data\documents"
+if not defined EXPORTS_HOST_PATH set "EXPORTS_HOST_PATH=%~dp0data\exports"
+if not defined BACKGROUNDS_HOST_PATH set "BACKGROUNDS_HOST_PATH=%~dp0data\backgrounds"
+if not defined FONTS_HOST_PATH set "FONTS_HOST_PATH=%~dp0fonts"
+
+if not exist "%USERS_HOST_PATH%" mkdir "%USERS_HOST_PATH%"
+if not exist "%DOCUMENTS_HOST_PATH%" mkdir "%DOCUMENTS_HOST_PATH%"
+if not exist "%EXPORTS_HOST_PATH%" mkdir "%EXPORTS_HOST_PATH%"
+if not exist "%BACKGROUNDS_HOST_PATH%" mkdir "%BACKGROUNDS_HOST_PATH%"
+if not exist "%FONTS_HOST_PATH%" mkdir "%FONTS_HOST_PATH%"
 
 echo   目录创建完成
 
